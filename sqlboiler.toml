@@ -1,0 +1,8 @@
+output = "db"
+pkgname = "db"
+add-global-variants = true
+no-context = true
+no-tests = true
+[sqlite3]
+    dbname = "./accumulator.db"
+    blacklist = ["schema_migrations"]
