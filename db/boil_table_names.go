@@ -4,11 +4,13 @@
 package db
 
 var TableNames = struct {
-	Attendance string
-	Friends    string
-	Users      string
+	Attendance   string
+	Friends      string
+	Integrations string
+	Users        string
 }{
-	Attendance: "attendance",
-	Friends:    "friends",
-	Users:      "users",
+	Attendance:   "attendance",
+	Friends:      "friends",
+	Integrations: "integrations",
+	Users:        "users",
 }

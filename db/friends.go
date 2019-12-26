@@ -23,6 +23,7 @@ import (
 // Friend is an object representing the database table.
 type Friend struct {
 	ID                            null.String `boil:"id" json:"id,omitempty" toml:"id" yaml:"id,omitempty"`
+	IntegrationID                 null.Int64  `boil:"integration_id" json:"integration_id,omitempty" toml:"integration_id" yaml:"integration_id,omitempty"`
 	IsTeacher                     bool        `boil:"is_teacher" json:"is_teacher" toml:"is_teacher" yaml:"is_teacher"`
 	VrchatUsername                null.String `boil:"vrchat_username" json:"vrchat_username,omitempty" toml:"vrchat_username" yaml:"vrchat_username,omitempty"`
 	VrchatDisplayName             null.String `boil:"vrchat_display_name" json:"vrchat_display_name,omitempty" toml:"vrchat_display_name" yaml:"vrchat_display_name,omitempty"`
@@ -35,6 +36,7 @@ type Friend struct {
 
 var FriendColumns = struct {
 	ID                            string
+	IntegrationID                 string
 	IsTeacher                     string
 	VrchatUsername                string
 	VrchatDisplayName             string
@@ -42,6 +44,7 @@ var FriendColumns = struct {
 	VrchatAvatarThumbnailImageURL string
 }{
 	ID:                            "id",
+	IntegrationID:                 "integration_id",
 	IsTeacher:                     "is_teacher",
 	VrchatUsername:                "vrchat_username",
 	VrchatDisplayName:             "vrchat_display_name",
@@ -85,6 +88,7 @@ func (w whereHelperbool) GTE(x bool) qm.QueryMod { return qmhelper.Where(w.field
 
 var FriendWhere = struct {
 	ID                            whereHelpernull_String
+	IntegrationID                 whereHelpernull_Int64
 	IsTeacher                     whereHelperbool
 	VrchatUsername                whereHelpernull_String
 	VrchatDisplayName             whereHelpernull_String
@@ -92,6 +96,7 @@ var FriendWhere = struct {
 	VrchatAvatarThumbnailImageURL whereHelpernull_String
 }{
 	ID:                            whereHelpernull_String{field: "\"friends\".\"id\""},
+	IntegrationID:                 whereHelpernull_Int64{field: "\"friends\".\"integration_id\""},
 	IsTeacher:                     whereHelperbool{field: "\"friends\".\"is_teacher\""},
 	VrchatUsername:                whereHelpernull_String{field: "\"friends\".\"vrchat_username\""},
 	VrchatDisplayName:             whereHelpernull_String{field: "\"friends\".\"vrchat_display_name\""},
@@ -101,15 +106,18 @@ var FriendWhere = struct {
 
 // FriendRels is where relationship names are stored.
 var FriendRels = struct {
+	Integration        string
 	Attendance         string
 	TeacherAttendances string
 }{
+	Integration:        "Integration",
 	Attendance:         "Attendance",
 	TeacherAttendances: "TeacherAttendances",
 }
 
 // friendR is where relationships are stored.
 type friendR struct {
+	Integration        *Integration
 	Attendance         *Attendance
 	TeacherAttendances AttendanceSlice
 }
@@ -123,8 +131,8 @@ func (*friendR) NewStruct() *friendR {
 type friendL struct{}
 
 var (
-	friendAllColumns            = []string{"id", "is_teacher", "vrchat_username", "vrchat_display_name", "vrchat_avatar_image_url", "vrchat_avatar_thumbnail_image_url"}
-	friendColumnsWithoutDefault = []string{"id", "vrchat_username", "vrchat_display_name", "vrchat_avatar_image_url", "vrchat_avatar_thumbnail_image_url"}
+	friendAllColumns            = []string{"id", "integration_id", "is_teacher", "vrchat_username", "vrchat_display_name", "vrchat_avatar_image_url", "vrchat_avatar_thumbnail_image_url"}
+	friendColumnsWithoutDefault = []string{"id", "integration_id", "vrchat_username", "vrchat_display_name", "vrchat_avatar_image_url", "vrchat_avatar_thumbnail_image_url"}
 	friendColumnsWithDefault    = []string{"is_teacher"}
 	friendPrimaryKeyColumns     = []string{"id"}
 )
@@ -388,6 +396,20 @@ func (q friendQuery) Exists(exec boil.Executor) (bool, error) {
 	return count > 0, nil
 }
 
+// Integration pointed to by the foreign key.
+func (o *Friend) Integration(mods ...qm.QueryMod) integrationQuery {
+	queryMods := []qm.QueryMod{
+		qm.Where("\"id\" = ?", o.IntegrationID),
+	}
+
+	queryMods = append(queryMods, mods...)
+
+	query := Integrations(queryMods...)
+	queries.SetFrom(query.Query, "\"integrations\"")
+
+	return query
+}
+
 // Attendance pointed to by the foreign key.
 func (o *Friend) Attendance(mods ...qm.QueryMod) attendanceQuery {
 	queryMods := []qm.QueryMod{
@@ -421,6 +443,111 @@ func (o *Friend) TeacherAttendances(mods ...qm.QueryMod) attendanceQuery {
 	}
 
 	return query
+}
+
+// LoadIntegration allows an eager lookup of values, cached into the
+// loaded structs of the objects. This is for an N-1 relationship.
+func (friendL) LoadIntegration(e boil.Executor, singular bool, maybeFriend interface{}, mods queries.Applicator) error {
+	var slice []*Friend
+	var object *Friend
+
+	if singular {
+		object = maybeFriend.(*Friend)
+	} else {
+		slice = *maybeFriend.(*[]*Friend)
+	}
+
+	args := make([]interface{}, 0, 1)
+	if singular {
+		if object.R == nil {
+			object.R = &friendR{}
+		}
+		if !queries.IsNil(object.IntegrationID) {
+			args = append(args, object.IntegrationID)
+		}
+
+	} else {
+	Outer:
+		for _, obj := range slice {
+			if obj.R == nil {
+				obj.R = &friendR{}
+			}
+
+			for _, a := range args {
+				if queries.Equal(a, obj.IntegrationID) {
+					continue Outer
+				}
+			}
+
+			if !queries.IsNil(obj.IntegrationID) {
+				args = append(args, obj.IntegrationID)
+			}
+
+		}
+	}
+
+	if len(args) == 0 {
+		return nil
+	}
+
+	query := NewQuery(qm.From(`integrations`), qm.WhereIn(`integrations.id in ?`, args...))
+	if mods != nil {
+		mods.Apply(query)
+	}
+
+	results, err := query.Query(e)
+	if err != nil {
+		return errors.Wrap(err, "failed to eager load Integration")
+	}
+
+	var resultSlice []*Integration
+	if err = queries.Bind(results, &resultSlice); err != nil {
+		return errors.Wrap(err, "failed to bind eager loaded slice Integration")
+	}
+
+	if err = results.Close(); err != nil {
+		return errors.Wrap(err, "failed to close results of eager load for integrations")
+	}
+	if err = results.Err(); err != nil {
+		return errors.Wrap(err, "error occurred during iteration of eager loaded relations for integrations")
+	}
+
+	if len(friendAfterSelectHooks) != 0 {
+		for _, obj := range resultSlice {
+			if err := obj.doAfterSelectHooks(e); err != nil {
+				return err
+			}
+		}
+	}
+
+	if len(resultSlice) == 0 {
+		return nil
+	}
+
+	if singular {
+		foreign := resultSlice[0]
+		object.R.Integration = foreign
+		if foreign.R == nil {
+			foreign.R = &integrationR{}
+		}
+		foreign.R.Friends = append(foreign.R.Friends, object)
+		return nil
+	}
+
+	for _, local := range slice {
+		for _, foreign := range resultSlice {
+			if queries.Equal(local.IntegrationID, foreign.ID) {
+				local.R.Integration = foreign
+				if foreign.R == nil {
+					foreign.R = &integrationR{}
+				}
+				foreign.R.Friends = append(foreign.R.Friends, local)
+				break
+			}
+		}
+	}
+
+	return nil
 }
 
 // LoadAttendance allows an eager lookup of values, cached into the
@@ -613,6 +740,100 @@ func (friendL) LoadTeacherAttendances(e boil.Executor, singular bool, maybeFrien
 		}
 	}
 
+	return nil
+}
+
+// SetIntegrationG of the friend to the related item.
+// Sets o.R.Integration to related.
+// Adds o to related.R.Friends.
+// Uses the global database handle.
+func (o *Friend) SetIntegrationG(insert bool, related *Integration) error {
+	return o.SetIntegration(boil.GetDB(), insert, related)
+}
+
+// SetIntegration of the friend to the related item.
+// Sets o.R.Integration to related.
+// Adds o to related.R.Friends.
+func (o *Friend) SetIntegration(exec boil.Executor, insert bool, related *Integration) error {
+	var err error
+	if insert {
+		if err = related.Insert(exec, boil.Infer()); err != nil {
+			return errors.Wrap(err, "failed to insert into foreign table")
+		}
+	}
+
+	updateQuery := fmt.Sprintf(
+		"UPDATE \"friends\" SET %s WHERE %s",
+		strmangle.SetParamNames("\"", "\"", 0, []string{"integration_id"}),
+		strmangle.WhereClause("\"", "\"", 0, friendPrimaryKeyColumns),
+	)
+	values := []interface{}{related.ID, o.ID}
+
+	if boil.DebugMode {
+		fmt.Fprintln(boil.DebugWriter, updateQuery)
+		fmt.Fprintln(boil.DebugWriter, values)
+	}
+
+	if _, err = exec.Exec(updateQuery, values...); err != nil {
+		return errors.Wrap(err, "failed to update local table")
+	}
+
+	queries.Assign(&o.IntegrationID, related.ID)
+	if o.R == nil {
+		o.R = &friendR{
+			Integration: related,
+		}
+	} else {
+		o.R.Integration = related
+	}
+
+	if related.R == nil {
+		related.R = &integrationR{
+			Friends: FriendSlice{o},
+		}
+	} else {
+		related.R.Friends = append(related.R.Friends, o)
+	}
+
+	return nil
+}
+
+// RemoveIntegrationG relationship.
+// Sets o.R.Integration to nil.
+// Removes o from all passed in related items' relationships struct (Optional).
+// Uses the global database handle.
+func (o *Friend) RemoveIntegrationG(related *Integration) error {
+	return o.RemoveIntegration(boil.GetDB(), related)
+}
+
+// RemoveIntegration relationship.
+// Sets o.R.Integration to nil.
+// Removes o from all passed in related items' relationships struct (Optional).
+func (o *Friend) RemoveIntegration(exec boil.Executor, related *Integration) error {
+	var err error
+
+	queries.SetScanner(&o.IntegrationID, nil)
+	if _, err = o.Update(exec, boil.Whitelist("integration_id")); err != nil {
+		return errors.Wrap(err, "failed to update local table")
+	}
+
+	o.R.Integration = nil
+	if related == nil || related.R == nil {
+		return nil
+	}
+
+	for i, ri := range related.R.Friends {
+		if queries.Equal(o.IntegrationID, ri.IntegrationID) {
+			continue
+		}
+
+		ln := len(related.R.Friends)
+		if ln > 1 && i < ln-1 {
+			related.R.Friends[i] = related.R.Friends[ln-1]
+		}
+		related.R.Friends = related.R.Friends[:ln-1]
+		break
+	}
 	return nil
 }
 

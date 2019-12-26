@@ -22,11 +22,9 @@ import (
 
 // User is an object representing the database table.
 type User struct {
-	ID           null.Int64  `boil:"id" json:"id,omitempty" toml:"id" yaml:"id,omitempty"`
-	Email        string      `boil:"email" json:"email" toml:"email" yaml:"email"`
-	PasswordHash string      `boil:"password_hash" json:"password_hash" toml:"password_hash" yaml:"password_hash"`
-	APIKey       null.String `boil:"api_key" json:"api_key,omitempty" toml:"api_key" yaml:"api_key,omitempty"`
-	AuthToken    null.String `boil:"auth_token" json:"auth_token,omitempty" toml:"auth_token" yaml:"auth_token,omitempty"`
+	ID           null.Int64 `boil:"id" json:"id,omitempty" toml:"id" yaml:"id,omitempty"`
+	Email        string     `boil:"email" json:"email" toml:"email" yaml:"email"`
+	PasswordHash string     `boil:"password_hash" json:"password_hash" toml:"password_hash" yaml:"password_hash"`
 
 	R *userR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L userL  `boil:"-" json:"-" toml:"-" yaml:"-"`
@@ -36,14 +34,10 @@ var UserColumns = struct {
 	ID           string
 	Email        string
 	PasswordHash string
-	APIKey       string
-	AuthToken    string
 }{
 	ID:           "id",
 	Email:        "email",
 	PasswordHash: "password_hash",
-	APIKey:       "api_key",
-	AuthToken:    "auth_token",
 }
 
 // Generated where
@@ -52,14 +46,10 @@ var UserWhere = struct {
 	ID           whereHelpernull_Int64
 	Email        whereHelperstring
 	PasswordHash whereHelperstring
-	APIKey       whereHelpernull_String
-	AuthToken    whereHelpernull_String
 }{
 	ID:           whereHelpernull_Int64{field: "\"users\".\"id\""},
 	Email:        whereHelperstring{field: "\"users\".\"email\""},
 	PasswordHash: whereHelperstring{field: "\"users\".\"password_hash\""},
-	APIKey:       whereHelpernull_String{field: "\"users\".\"api_key\""},
-	AuthToken:    whereHelpernull_String{field: "\"users\".\"auth_token\""},
 }
 
 // UserRels is where relationship names are stored.
@@ -79,9 +69,9 @@ func (*userR) NewStruct() *userR {
 type userL struct{}
 
 var (
-	userAllColumns            = []string{"id", "email", "password_hash", "api_key", "auth_token"}
-	userColumnsWithoutDefault = []string{"id", "email", "password_hash", "api_key", "auth_token"}
-	userColumnsWithDefault    = []string{}
+	userAllColumns            = []string{"id", "email", "password_hash"}
+	userColumnsWithoutDefault = []string{"email", "password_hash"}
+	userColumnsWithDefault    = []string{"id"}
 	userPrimaryKeyColumns     = []string{"id"}
 )
 
