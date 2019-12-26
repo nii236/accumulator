@@ -4,16 +4,17 @@ import (
 	"accumulator/db"
 	"bytes"
 	"context"
-	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
+
 	vrc "github.com/nii236/vrchat-go/client"
 
 	"net/http"
 	"text/template"
-	// http driver for caddy
+
 	"github.com/caddyserver/caddy"
+	// http driver for caddy
 	_ "github.com/caddyserver/caddy/caddyhttp"
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
@@ -27,11 +28,14 @@ var ErrNotImplemented = errors.New("not implemented")
 
 // HandlerFunc is a custom http.HandlerFunc that returns a status code and error
 type HandlerFunc func(w http.ResponseWriter, r *http.Request) (interface{}, int, error)
+
+// ErrorResponse for HTTP
 type ErrorResponse struct {
 	Err     string `json:"err"`
 	Message string `json:"message"`
 }
 
+// Err constructor
 func Err(err error, message ...string) *ErrorResponse {
 	e := &ErrorResponse{
 		Err: err.Error(),
@@ -43,12 +47,15 @@ func Err(err error, message ...string) *ErrorResponse {
 	return e
 }
 
+// Unwrap the inner error
 func (e *ErrorResponse) Unwrap() error {
 	return errors.New(e.Err)
 }
 func (e *ErrorResponse) Error() string {
 	return e.Message
 }
+
+// JSON body for HTTP response
 func (e *ErrorResponse) JSON() string {
 	b, err := json.Marshal(e)
 	if err != nil {
@@ -99,7 +106,7 @@ const caddyfileTemplate = `
 `
 
 // RunServer the service
-func RunServer(ctx context.Context, conn *sqlx.DB, serverAddr string, vrcClient *vrc.Client, log *zap.SugaredLogger) error {
+func RunServer(ctx context.Context, conn *sqlx.DB, serverAddr string, log *zap.SugaredLogger) error {
 	log.Infow("Start service", "svc-addr", serverAddr)
 	// tokenAuth := jwtauth.New("HS256", []byte("secret"), nil)
 
@@ -120,15 +127,14 @@ func RunServer(ctx context.Context, conn *sqlx.DB, serverAddr string, vrcClient 
 			r.Post("/auth/set_password", withError(setPasswordHandler))
 
 			r.Get("/integrations/list", withError(integrationsListHandler))
-			r.Post("/integrations/add_api_key", withError(integrationsAddAPIKeyHandler))
 			r.Post("/integrations/add_username", withError(integrationsAddUsernameHandler))
 			r.Post("/integrations/delete", withError(integrationsDeleteHandler))
 
 			r.Get("/friends/list", withError(friendListHandler))
 			r.Post("/friends/refresh", withError(friendRefreshHandler))
 			r.Post("/friends/promote", withError(friendPromoteHandler))
-			r.Post("/friends/demote", withError(friendDemoteHandler))
 
+			r.Post("/teachers/demote", withError(teacherDemoteHandler))
 			r.Get("/teachers/list", withError(teacherListHandler))
 		})
 
@@ -147,6 +153,7 @@ func RunServer(ctx context.Context, conn *sqlx.DB, serverAddr string, vrcClient 
 	return http.ListenAndServe(serverAddr, r)
 }
 
+// RunLoadBalancer starts Caddy
 func RunLoadBalancer(ctx context.Context, conn *sqlx.DB, loadBalancerAddr, serverAddr, rootPath string, log *zap.SugaredLogger) error {
 	log.Infow("Starting load balancer", "lb-addr", loadBalancerAddr, "svc-addr", serverAddr, "web", rootPath)
 	caddy.AppName = "Accumulator"
@@ -194,36 +201,38 @@ func integrationsListHandler(w http.ResponseWriter, r *http.Request) (interface{
 	}
 	return &Response{result}, 200, nil
 }
-func integrationsAddAPIKeyHandler(w http.ResponseWriter, r *http.Request) (interface{}, int, error) {
+func integrationsAddUsernameHandler(w http.ResponseWriter, r *http.Request) (interface{}, int, error) {
 	type Request struct {
-		APIKey    string
-		AuthToken string
+		Username string `json:"username"`
+		Password string `json:"password"`
 	}
 	type Response struct {
 		Data string `json:"data"`
 	}
+
 	req := &Request{}
 	err := json.NewDecoder(r.Body).Decode(req)
 	if err != nil {
 		return nil, http.StatusBadRequest, err
 	}
-	record := &db.Integration{
-		APIKey:    req.APIKey,
-		AuthToken: req.AuthToken,
-	}
-	err = record.InsertG(boil.Infer())
-	if !errors.Is(err, sql.ErrNoRows) {
-		// return nil, http.StatusInternalServerError, err
-	}
-	err = record.ReloadG()
+
+	_, apiKey, authToken, err := vrc.Token(vrc.ReleaseAPIURL, req.Username, req.Password)
 	if err != nil {
-		// return nil, http.StatusInternalServerError, err
+		return nil, http.StatusBadRequest, err
 	}
+	record := &db.Integration{
+		APIKey:    apiKey,
+		AuthToken: authToken,
+	}
+	client, err := vrc.NewClient(vrc.ReleaseAPIURL, authToken, apiKey)
+	if err != nil {
+		return nil, http.StatusBadRequest, err
+	}
+	client.RemoteConfig()
+
+	// TODO: Figure out how to handle error handling with ROWID primary keys
+	record.InsertG(boil.Infer())
 	return record, http.StatusOK, nil
-}
-func integrationsAddUsernameHandler(w http.ResponseWriter, r *http.Request) (interface{}, int, error) {
-	// record := &db.Integration{}
-	return nil, 500, ErrNotImplemented
 }
 func integrationsDeleteHandler(w http.ResponseWriter, r *http.Request) (interface{}, int, error) {
 	return nil, 500, ErrNotImplemented
@@ -260,8 +269,20 @@ func setPasswordHandler(w http.ResponseWriter, r *http.Request) (interface{}, in
 }
 
 func friendListHandler(w http.ResponseWriter, r *http.Request) (interface{}, int, error) {
+	type Request struct {
+		IntegrationID int
+	}
 	type Response struct {
 		Data db.FriendSlice `json:"data"`
+	}
+	req := &Request{}
+	err := json.NewDecoder(r.Body).Decode(req)
+	if err != nil {
+		return nil, http.StatusBadRequest, err
+	}
+	err = RefreshFriendCache(req.IntegrationID)
+	if err != nil {
+		return nil, http.StatusInternalServerError, err
 	}
 	result, err := db.Friends(db.FriendWhere.IsTeacher.EQ(false)).AllG()
 	if err != nil {
@@ -292,7 +313,7 @@ func friendPromoteHandler(w http.ResponseWriter, r *http.Request) (interface{}, 
 	}
 	return nil, 200, ErrNotImplemented
 }
-func friendDemoteHandler(w http.ResponseWriter, r *http.Request) (interface{}, int, error) {
+func teacherDemoteHandler(w http.ResponseWriter, r *http.Request) (interface{}, int, error) {
 	type Response struct {
 		Data *db.Friend `json:"data"`
 	}

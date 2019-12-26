@@ -2,7 +2,7 @@ module accumulator
 
 go 1.13
 
-replace github.com/nii236/vrchat-go/client => /home/nii236/git/vrchat-go/client
+replace github.com/nii236/vrchat-go => /home/nii236/git/vrchat-go
 
 require (
 	github.com/DATA-DOG/go-sqlmock v1.3.3 // indirect

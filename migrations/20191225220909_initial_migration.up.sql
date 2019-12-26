@@ -9,13 +9,13 @@ CREATE TABLE integrations (
     auth_token VARCHAR NOT NULL DEFAULT ''
 );
 CREATE TABLE friends (
-    id VARCHAR PRIMARY KEY,
-    integration_id INT NULL NULL REFERENCES integrations(id),
+    id VARCHAR NOT NULL PRIMARY KEY,
+    integration_id INT NOT NULL REFERENCES integrations(id),
     is_teacher BOOLEAN NOT NULL DEFAULT 0,
-    vrchat_username VARCHAR,
-    vrchat_display_name VARCHAR,
-    vrchat_avatar_image_url VARCHAR,
-    vrchat_avatar_thumbnail_image_url VARCHAR
+    vrchat_username VARCHAR NOT NULL,
+    vrchat_display_name VARCHAR NOT NULL,
+    vrchat_avatar_image_url VARCHAR NOT NULL,
+    vrchat_avatar_thumbnail_image_url VARCHAR NOT NULL
 );
 
 CREATE TABLE attendance (

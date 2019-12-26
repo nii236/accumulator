@@ -14,8 +14,6 @@ const Home = () => {
 	return (
 		<>
 			<Integrations />
-			<Friends />
-			<Teachers />
 		</>
 	)
 }
@@ -28,11 +26,11 @@ const Routes = () => {
 	return (
 		<div className={routeStyle}>
 			<Router>
+			<Route path="/" component={Home} />
 				{/* <Route path="/signin" component={SignIn} />
 				<Route path="/signup" component={SignUp} /> */}
 				<Route path="/friends" component={Friends} />
 				<Route path="/teachers" component={Teachers} />
-				<Route path="/integrations" component={Integrations} />
 				{/* <Route path={"/verify/:code"} exact render={props => <EmailVerify code={props.match.params.code} />} /> */}
 				{/* <Route path="/verify" exact component={EmailVerify} /> */}
 			</Router>
@@ -52,7 +50,7 @@ const App = () => {
 					<meta id="og-title" property="og:title" content="MyApp" />
 					<meta id="og-image" property="og:image" content="path/to/image.jpg" />
 				</MetaTags>
-				<Home />
+				<Routes />
 			</BaseProvider>
 		</StyletronProvider>
 	)

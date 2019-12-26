@@ -10,9 +10,10 @@ export const IntegrationsAddUsernameURL = "/api/integrations/add_username"
 export const FriendsListURL = "/api/friends/list"
 export const FriendsRefreshURL = "/api/friends/refresh"
 export const FriendsPromoteURL = "/api/friends/promote"
-export const FriendsDemoteURL = "/api/friends/demote"
 
+export const TeachersDemoteURL = "/api/teachers/demote"
 export const TeachersListURL = "/api/teachers/list"
+
 export const AuthSignInURL = "/api/auth/sign_in"
 export const AuthSignUpURL = "/api/auth/sign_up"
 export const AuthForgotPasswordURL = "/api/auth/forgot_password"

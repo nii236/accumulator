@@ -4,54 +4,15 @@ import { Error } from "../types/api"
 import { Notification, KIND } from "baseui/notification"
 import { useForm } from "react-hook-form"
 
-const AddVRChatAPIKey = () => {
-	const { register, setValue, handleSubmit, errors } = useForm<{
-		apiKey: string
-		authToken: string
-	}>()
-	const [err, setErr] = React.useState<string | null>(null)
-	const submit = async (apiKey: string, authToken: string) => {
-		try {
-			const res = await fetch(IntegrationsAddAPIKeyURL, { method: "POST", body: JSON.stringify({ apiKey, authToken }) })
-			if (!res.ok) {
-				const err: Error = await res.json()
-				throw new Error(err.message)
-			}
-
-			const data: { data: integration[] } = await res.json()
-			console.log(data)
-		} catch (err) {
-			console.error(err)
-			setErr(err.toString())
-		}
-	}
-	const onSubmit = handleSubmit(({ apiKey, authToken }) => {
-		submit(apiKey, authToken)
-	})
-
-	return (
-		<form onSubmit={onSubmit}>
-			{err && <Notification kind={KIND.negative}>{err}</Notification>}
-			{errors.apiKey && <Notification kind={KIND.negative}>This field is required</Notification>}
-			<label>API Key</label>
-			<input name="apiKey" ref={register({ required: true })} />
-			{errors.authToken && <Notification kind={KIND.negative}>This field is required</Notification>}
-			<label>Auth Token</label>
-			<input name="authToken" ref={register({ required: true })} />
-			<input type="submit" />
-		</form>
-	)
-}
-
 const AddVRChatUsername = () => {
-	const { register, setValue, handleSubmit, errors } = useForm<{
+	const { register, setValue, handleSubmit, errors, setError } = useForm<{
 		username: string
 		password: string
 	}>()
 	const [err, setErr] = React.useState<string | null>(null)
 	const submit = async (username: string, password: string) => {
 		try {
-			const res = await fetch(IntegrationsAddUsernameURL, { method: "POST" })
+			const res = await fetch(IntegrationsAddUsernameURL, { method: "POST", body: JSON.stringify({ username, password }) })
 			if (!res.ok) {
 				const err: Error = await res.json()
 				throw new Error(err.message)
@@ -65,6 +26,8 @@ const AddVRChatUsername = () => {
 		}
 	}
 	const onSubmit = handleSubmit(({ username, password }) => {
+		setError([])
+		setErr(null)
 		submit(username, password)
 	})
 
@@ -77,7 +40,7 @@ const AddVRChatUsername = () => {
 			{errors.password && <Notification kind={KIND.negative}>This field is required</Notification>}
 			<label>Password</label>
 			<input name="password" ref={register({ required: true })} />
-			<input type="submit" />
+			<button type="submit">Add</button>
 		</form>
 	)
 }
@@ -112,10 +75,9 @@ export const Integrations = () => {
 	}, [])
 	return (
 		<div>
-			<AddVRChatAPIKey />
-			<AddVRChatUsername />
 			{err && <Notification kind={KIND.negative}>{err}</Notification>}
 			<h1>Integrations</h1>
+			<AddVRChatUsername />
 			{!integrations && <p>No data</p>}
 			{integrations &&
 				integrations.map(integration => {

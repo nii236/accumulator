@@ -5,8 +5,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"github.com/nii236/vrchat-go/client"
-	vrc "github.com/nii236/vrchat-go/client"
 	"log"
 
 	"github.com/jmoiron/sqlx"
@@ -23,11 +21,6 @@ func connect() (*sqlx.DB, error) {
 	return conn, nil
 }
 func main() {
-	vrcClient, err := vrc.NewClient(client.ReleaseAPIURL)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
 	fmt.Println("Booting up accumulator system...")
 	rootPath := flag.String("root-path", "./web/dist", "Path of the webapp")
 	serverAddr := flag.String("server-addr", ":8081", "Address to host on")
@@ -44,7 +37,7 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	g.Add(func() error {
-		return accumulator.RunServer(ctx, conn, *serverAddr, vrcClient, accumulator.NewLogToStdOut("server", "0.0.1", false))
+		return accumulator.RunServer(ctx, conn, *serverAddr, accumulator.NewLogToStdOut("server", "0.0.1", false))
 	}, func(err error) {
 		fmt.Println(err)
 		cancel()
