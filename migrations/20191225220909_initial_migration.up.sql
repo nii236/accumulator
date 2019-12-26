@@ -5,17 +5,21 @@ CREATE TABLE users (
 );
 CREATE TABLE integrations (
     id INTEGER PRIMARY KEY,
-    api_key VARCHAR NOT NULL DEFAULT '',
-    auth_token VARCHAR NOT NULL DEFAULT ''
+    username VARCHAR NOT NULL UNIQUE,
+    api_key VARCHAR NOT NULL,
+    auth_token VARCHAR NOT NULL 
 );
 CREATE TABLE friends (
-    id VARCHAR NOT NULL PRIMARY KEY,
+    id INTEGER PRIMARY KEY,
     integration_id INT NOT NULL REFERENCES integrations(id),
     is_teacher BOOLEAN NOT NULL DEFAULT 0,
+    vrchat_id VARCHAR NOT NULL,
     vrchat_username VARCHAR NOT NULL,
     vrchat_display_name VARCHAR NOT NULL,
     vrchat_avatar_image_url VARCHAR NOT NULL,
-    vrchat_avatar_thumbnail_image_url VARCHAR NOT NULL
+    vrchat_avatar_thumbnail_image_url VARCHAR NOT NULL,
+    vrchat_location VARCHAR NOT NULL,
+    UNIQUE (integration_id, vrchat_id)
 );
 
 CREATE TABLE attendance (
@@ -23,7 +27,6 @@ CREATE TABLE attendance (
     integration_id INT NULL NULL REFERENCES integrations(id),
     friend_id INT REFERENCES friends(id),
     teacher_id INT REFERENCES friends(id),
-    world_id VARCHAR NOT NULL,
-    instance_id VARCHAR NOT NULL,
+    location VARCHAR NOT NULL,
     PRIMARY KEY (timestamp, friend_id)
 );

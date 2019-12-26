@@ -4,6 +4,7 @@ export const AuthSetPasswordURL = "/api/auth/set_password"
 export const AuthSetTokenURL = "/api/auth/set_token"
 
 export const IntegrationsListURL = "/api/integrations/list"
+export const IntegrationsDeleteURL = "/api/integrations/list"
 export const IntegrationsAddAPIKeyURL = "/api/integrations/add_api_key"
 export const IntegrationsAddUsernameURL = "/api/integrations/add_username"
 

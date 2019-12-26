@@ -7,6 +7,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strconv"
+	"strings"
 
 	vrc "github.com/nii236/vrchat-go/client"
 
@@ -19,12 +21,16 @@ import (
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
 	"github.com/jmoiron/sqlx"
+	"github.com/volatiletech/null"
 	"github.com/volatiletech/sqlboiler/boil"
 	"go.uber.org/zap"
 )
 
 // ErrNotImplemented is used to stub empty funcs
 var ErrNotImplemented = errors.New("not implemented")
+
+// ErrUnableToPopulate occurs because of SQLite's ID creation order
+var ErrUnableToPopulate = "db: unable to populate default values for integrations"
 
 // HandlerFunc is a custom http.HandlerFunc that returns a status code and error
 type HandlerFunc func(w http.ResponseWriter, r *http.Request) (interface{}, int, error)
@@ -107,11 +113,29 @@ const caddyfileTemplate = `
 
 // RunServer the service
 func RunServer(ctx context.Context, conn *sqlx.DB, serverAddr string, log *zap.SugaredLogger) error {
-	log.Infow("Start service", "svc-addr", serverAddr)
+	log.Infow("start api", "svc-addr", serverAddr)
 	// tokenAuth := jwtauth.New("HS256", []byte("secret"), nil)
 
-	r := chi.NewRouter()
+	// memcached, err := memory.NewAdapter(
+	// 	memory.AdapterWithAlgorithm(memory.LRU),
+	// 	memory.AdapterWithCapacity(10000000),
+	// )
+	// if err != nil {
+	// 	fmt.Println(err)
+	// 	os.Exit(1)
+	// }
 
+	// cacheClient, err := cache.NewClient(
+	// 	cache.ClientWithAdapter(memcached),
+	// 	cache.ClientWithTTL(1*time.Minute),
+	// 	cache.ClientWithRefreshKey("opn"),
+	// )
+	// if err != nil {
+	// 	fmt.Println(err)
+	// 	os.Exit(1)
+	// }
+
+	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RealIP)
 	r.Use(middleware.Logger)
@@ -128,14 +152,12 @@ func RunServer(ctx context.Context, conn *sqlx.DB, serverAddr string, log *zap.S
 
 			r.Get("/integrations/list", withError(integrationsListHandler))
 			r.Post("/integrations/add_username", withError(integrationsAddUsernameHandler))
-			r.Post("/integrations/delete", withError(integrationsDeleteHandler))
-
-			r.Get("/friends/list", withError(friendListHandler))
-			r.Post("/friends/refresh", withError(friendRefreshHandler))
-			r.Post("/friends/promote", withError(friendPromoteHandler))
-
-			r.Post("/teachers/demote", withError(teacherDemoteHandler))
-			r.Get("/teachers/list", withError(teacherListHandler))
+			r.Post("/integrations/{integration_id}/delete", withError(integrationsDeleteHandler))
+			r.Get("/integrations/{integration_id}/attendance/list", withError(attendanceListHandler))
+			r.Get("/integrations/{integration_id}/friends/list", withError(friendListHandler))
+			r.Post("/integrations/{integration_id}/friends/refresh", withError(friendRefreshHandler))
+			r.Post("/integrations/{integration_id}/friends/{friend_id}/promote", withError(friendPromoteHandler))
+			r.Post("/integrations/{integration_id}/friends/{friend_id}/demote", withError(friendDemoteHandler))
 		})
 
 		// Public routes
@@ -155,7 +177,7 @@ func RunServer(ctx context.Context, conn *sqlx.DB, serverAddr string, log *zap.S
 
 // RunLoadBalancer starts Caddy
 func RunLoadBalancer(ctx context.Context, conn *sqlx.DB, loadBalancerAddr, serverAddr, rootPath string, log *zap.SugaredLogger) error {
-	log.Infow("Starting load balancer", "lb-addr", loadBalancerAddr, "svc-addr", serverAddr, "web", rootPath)
+	log.Infow("start load balancer", "lb-addr", loadBalancerAddr, "svc-addr", serverAddr, "web", rootPath)
 	caddy.AppName = "Accumulator"
 	caddy.AppVersion = "0.0.1"
 	caddy.Quiet = true
@@ -221,21 +243,51 @@ func integrationsAddUsernameHandler(w http.ResponseWriter, r *http.Request) (int
 		return nil, http.StatusBadRequest, err
 	}
 	record := &db.Integration{
+		Username:  req.Username,
 		APIKey:    apiKey,
 		AuthToken: authToken,
 	}
-	client, err := vrc.NewClient(vrc.ReleaseAPIURL, authToken, apiKey)
+	exists, err := db.Integrations(db.IntegrationWhere.Username.EQ(req.Username)).ExistsG()
 	if err != nil {
-		return nil, http.StatusBadRequest, err
+		return nil, http.StatusInternalServerError, err
 	}
-	client.RemoteConfig()
-
-	// TODO: Figure out how to handle error handling with ROWID primary keys
-	record.InsertG(boil.Infer())
+	if exists {
+		existingRecord, err := db.Integrations(db.IntegrationWhere.Username.EQ(req.Username)).OneG()
+		if err != nil {
+			return nil, http.StatusInternalServerError, err
+		}
+		existingRecord.APIKey = apiKey
+		existingRecord.AuthToken = authToken
+		_, err = record.UpdateG(boil.Infer())
+		if err != nil {
+			return nil, http.StatusInternalServerError, err
+		}
+		return record, http.StatusOK, nil
+	}
+	err = record.InsertG(boil.Blacklist("id"))
+	if err != nil && !strings.Contains(err.Error(), ErrUnableToPopulate) {
+		return nil, http.StatusInternalServerError, err
+	}
 	return record, http.StatusOK, nil
 }
 func integrationsDeleteHandler(w http.ResponseWriter, r *http.Request) (interface{}, int, error) {
-	return nil, 500, ErrNotImplemented
+	IntegrationIDStr := chi.URLParam(r, "integration_id")
+	type Response struct {
+		Data db.FriendSlice `json:"data"`
+	}
+	IntegrationID, err := strconv.Atoi(IntegrationIDStr)
+	if err != nil {
+		return nil, http.StatusInternalServerError, err
+	}
+	integration, err := db.FindIntegrationG(null.Int64From(int64(IntegrationID)))
+	if err != nil {
+		return nil, http.StatusInternalServerError, err
+	}
+	_, err = integration.DeleteG()
+	if err != nil {
+		return nil, http.StatusInternalServerError, err
+	}
+	return nil, 200, nil
 }
 
 func signOutHandler(w http.ResponseWriter, r *http.Request) (interface{}, int, error) {
@@ -268,23 +320,35 @@ func setPasswordHandler(w http.ResponseWriter, r *http.Request) (interface{}, in
 	return nil, 200, ErrNotImplemented
 }
 
-func friendListHandler(w http.ResponseWriter, r *http.Request) (interface{}, int, error) {
-	type Request struct {
-		IntegrationID int
-	}
+func attendanceListHandler(w http.ResponseWriter, r *http.Request) (interface{}, int, error) {
+	IntegrationIDStr := chi.URLParam(r, "integration_id")
 	type Response struct {
-		Data db.FriendSlice `json:"data"`
+		Data db.AttendanceSlice `json:"data"`
 	}
-	req := &Request{}
-	err := json.NewDecoder(r.Body).Decode(req)
-	if err != nil {
-		return nil, http.StatusBadRequest, err
-	}
-	err = RefreshFriendCache(req.IntegrationID)
+	IntegrationID, err := strconv.Atoi(IntegrationIDStr)
 	if err != nil {
 		return nil, http.StatusInternalServerError, err
 	}
-	result, err := db.Friends(db.FriendWhere.IsTeacher.EQ(false)).AllG()
+	result, err := db.Attendances(db.AttendanceWhere.IntegrationID.EQ(null.Int64From(int64(IntegrationID)))).AllG()
+	if err != nil {
+		return nil, http.StatusInternalServerError, err
+	}
+	return &Response{result}, 200, nil
+}
+func friendListHandler(w http.ResponseWriter, r *http.Request) (interface{}, int, error) {
+	IntegrationIDStr := chi.URLParam(r, "integration_id")
+	type Response struct {
+		Data db.FriendSlice `json:"data"`
+	}
+	IntegrationID, err := strconv.Atoi(IntegrationIDStr)
+	if err != nil {
+		return nil, http.StatusInternalServerError, err
+	}
+	err = refreshFriendCache(IntegrationID)
+	if err != nil {
+		return nil, http.StatusInternalServerError, err
+	}
+	result, err := db.Friends().AllG()
 	if err != nil {
 		return nil, 500, err
 	}
@@ -311,13 +375,53 @@ func friendPromoteHandler(w http.ResponseWriter, r *http.Request) (interface{}, 
 	type Response struct {
 		Data *db.Friend `json:"data"`
 	}
-	return nil, 200, ErrNotImplemented
+
+	IntegrationIDStr := chi.URLParam(r, "integration_id")
+	IntegrationID, err := strconv.Atoi(IntegrationIDStr)
+	if err != nil {
+		return nil, http.StatusInternalServerError, err
+	}
+
+	FriendID := chi.URLParam(r, "friend_id")
+	friend, err := db.Friends(
+		db.FriendWhere.IntegrationID.EQ(int64(IntegrationID)),
+		db.FriendWhere.VrchatID.EQ(FriendID),
+	).OneG()
+	if err != nil {
+		return nil, http.StatusInternalServerError, err
+	}
+	friend.IsTeacher = true
+	_, err = friend.UpdateG(boil.Whitelist(db.FriendColumns.IsTeacher))
+	if err != nil {
+		return nil, http.StatusInternalServerError, err
+	}
+	return friend, 200, nil
 }
-func teacherDemoteHandler(w http.ResponseWriter, r *http.Request) (interface{}, int, error) {
+func friendDemoteHandler(w http.ResponseWriter, r *http.Request) (interface{}, int, error) {
 	type Response struct {
 		Data *db.Friend `json:"data"`
 	}
-	return nil, 200, ErrNotImplemented
+
+	IntegrationIDStr := chi.URLParam(r, "integration_id")
+	IntegrationID, err := strconv.Atoi(IntegrationIDStr)
+	if err != nil {
+		return nil, http.StatusInternalServerError, err
+	}
+
+	FriendID := chi.URLParam(r, "friend_id")
+	friend, err := db.Friends(
+		db.FriendWhere.IntegrationID.EQ(int64(IntegrationID)),
+		db.FriendWhere.VrchatID.EQ(FriendID),
+	).OneG()
+	if err != nil {
+		return nil, http.StatusInternalServerError, err
+	}
+	friend.IsTeacher = false
+	_, err = friend.UpdateG(boil.Whitelist(db.FriendColumns.IsTeacher))
+	if err != nil {
+		return nil, http.StatusInternalServerError, err
+	}
+	return friend, 200, nil
 }
 func teacherListHandler(w http.ResponseWriter, r *http.Request) (interface{}, int, error) {
 	type Response struct {

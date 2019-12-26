@@ -2,17 +2,18 @@ package accumulator
 
 import (
 	"accumulator/db"
-	"database/sql"
-	"errors"
 
 	vrc "github.com/nii236/vrchat-go/client"
 	"github.com/volatiletech/null"
 	"github.com/volatiletech/sqlboiler/boil"
 )
 
-// RefreshFriendCache in the database
-func RefreshFriendCache(IntegrationID int) error {
+// refreshFriendCache in the database
+func refreshFriendCache(IntegrationID int) error {
 	integration, err := db.FindIntegrationG(null.Int64From(int64(IntegrationID)))
+	if err != nil {
+		return err
+	}
 	client, err := vrc.NewClient(vrc.ReleaseAPIURL, integration.AuthToken, integration.APIKey)
 	if err != nil {
 		return err
@@ -21,22 +22,32 @@ func RefreshFriendCache(IntegrationID int) error {
 	if err != nil {
 		return err
 	}
-
 	for _, vrcFriend := range vrcResult {
 		record := &db.Friend{
-			ID:                            vrcFriend.ID,
 			IntegrationID:                 int64(IntegrationID),
+			VrchatID:                      vrcFriend.ID,
 			VrchatUsername:                vrcFriend.Username,
 			VrchatDisplayName:             vrcFriend.DisplayName,
 			VrchatAvatarImageURL:          vrcFriend.CurrentAvatarImageURL,
 			VrchatAvatarThumbnailImageURL: vrcFriend.CurrentAvatarThumbnailImageURL,
+			VrchatLocation:                vrcFriend.Location,
 		}
-		_, err := db.FindFriendG(vrcFriend.ID)
-		if errors.Is(err, sql.ErrNoRows) {
+		existing, err := db.Friends(
+			db.FriendWhere.VrchatID.EQ(vrcFriend.ID),
+		).AllG()
+		if len(existing) == 0 {
 			record.InsertG(boil.Infer())
 			continue
 		}
-		_, err = record.UpdateG(boil.Blacklist(db.FriendColumns.IsTeacher))
+		updateMany := db.M{
+			db.FriendColumns.VrchatID:                      vrcFriend.ID,
+			db.FriendColumns.VrchatUsername:                vrcFriend.Username,
+			db.FriendColumns.VrchatDisplayName:             vrcFriend.DisplayName,
+			db.FriendColumns.VrchatAvatarImageURL:          vrcFriend.CurrentAvatarImageURL,
+			db.FriendColumns.VrchatAvatarThumbnailImageURL: vrcFriend.CurrentAvatarThumbnailImageURL,
+			db.FriendColumns.VrchatLocation:                vrcFriend.Location,
+		}
+		_, err = existing.UpdateAllG(updateMany)
 		if err != nil {
 			return err
 		}

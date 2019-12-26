@@ -23,6 +23,7 @@ import (
 // Integration is an object representing the database table.
 type Integration struct {
 	ID        null.Int64 `boil:"id" json:"id,omitempty" toml:"id" yaml:"id,omitempty"`
+	Username  string     `boil:"username" json:"username" toml:"username" yaml:"username"`
 	APIKey    string     `boil:"api_key" json:"api_key" toml:"api_key" yaml:"api_key"`
 	AuthToken string     `boil:"auth_token" json:"auth_token" toml:"auth_token" yaml:"auth_token"`
 
@@ -32,10 +33,12 @@ type Integration struct {
 
 var IntegrationColumns = struct {
 	ID        string
+	Username  string
 	APIKey    string
 	AuthToken string
 }{
 	ID:        "id",
+	Username:  "username",
 	APIKey:    "api_key",
 	AuthToken: "auth_token",
 }
@@ -44,27 +47,29 @@ var IntegrationColumns = struct {
 
 var IntegrationWhere = struct {
 	ID        whereHelpernull_Int64
+	Username  whereHelperstring
 	APIKey    whereHelperstring
 	AuthToken whereHelperstring
 }{
 	ID:        whereHelpernull_Int64{field: "\"integrations\".\"id\""},
+	Username:  whereHelperstring{field: "\"integrations\".\"username\""},
 	APIKey:    whereHelperstring{field: "\"integrations\".\"api_key\""},
 	AuthToken: whereHelperstring{field: "\"integrations\".\"auth_token\""},
 }
 
 // IntegrationRels is where relationship names are stored.
 var IntegrationRels = struct {
+	Friend      string
 	Attendances string
-	Friends     string
 }{
+	Friend:      "Friend",
 	Attendances: "Attendances",
-	Friends:     "Friends",
 }
 
 // integrationR is where relationships are stored.
 type integrationR struct {
+	Friend      *Friend
 	Attendances AttendanceSlice
-	Friends     FriendSlice
 }
 
 // NewStruct creates a new relationship struct
@@ -76,9 +81,9 @@ func (*integrationR) NewStruct() *integrationR {
 type integrationL struct{}
 
 var (
-	integrationAllColumns            = []string{"id", "api_key", "auth_token"}
-	integrationColumnsWithoutDefault = []string{}
-	integrationColumnsWithDefault    = []string{"id", "api_key", "auth_token"}
+	integrationAllColumns            = []string{"id", "username", "api_key", "auth_token"}
+	integrationColumnsWithoutDefault = []string{"username", "api_key", "auth_token"}
+	integrationColumnsWithDefault    = []string{"id"}
 	integrationPrimaryKeyColumns     = []string{"id"}
 )
 
@@ -341,6 +346,20 @@ func (q integrationQuery) Exists(exec boil.Executor) (bool, error) {
 	return count > 0, nil
 }
 
+// Friend pointed to by the foreign key.
+func (o *Integration) Friend(mods ...qm.QueryMod) friendQuery {
+	queryMods := []qm.QueryMod{
+		qm.Where("\"integration_id\" = ?", o.ID),
+	}
+
+	queryMods = append(queryMods, mods...)
+
+	query := Friends(queryMods...)
+	queries.SetFrom(query.Query, "\"friends\"")
+
+	return query
+}
+
 // Attendances retrieves all the attendance's Attendances with an executor.
 func (o *Integration) Attendances(mods ...qm.QueryMod) attendanceQuery {
 	var queryMods []qm.QueryMod
@@ -362,25 +381,102 @@ func (o *Integration) Attendances(mods ...qm.QueryMod) attendanceQuery {
 	return query
 }
 
-// Friends retrieves all the friend's Friends with an executor.
-func (o *Integration) Friends(mods ...qm.QueryMod) friendQuery {
-	var queryMods []qm.QueryMod
-	if len(mods) != 0 {
-		queryMods = append(queryMods, mods...)
+// LoadFriend allows an eager lookup of values, cached into the
+// loaded structs of the objects. This is for a 1-1 relationship.
+func (integrationL) LoadFriend(e boil.Executor, singular bool, maybeIntegration interface{}, mods queries.Applicator) error {
+	var slice []*Integration
+	var object *Integration
+
+	if singular {
+		object = maybeIntegration.(*Integration)
+	} else {
+		slice = *maybeIntegration.(*[]*Integration)
 	}
 
-	queryMods = append(queryMods,
-		qm.Where("\"friends\".\"integration_id\"=?", o.ID),
-	)
+	args := make([]interface{}, 0, 1)
+	if singular {
+		if object.R == nil {
+			object.R = &integrationR{}
+		}
+		args = append(args, object.ID)
+	} else {
+	Outer:
+		for _, obj := range slice {
+			if obj.R == nil {
+				obj.R = &integrationR{}
+			}
 
-	query := Friends(queryMods...)
-	queries.SetFrom(query.Query, "\"friends\"")
+			for _, a := range args {
+				if queries.Equal(a, obj.ID) {
+					continue Outer
+				}
+			}
 
-	if len(queries.GetSelect(query.Query)) == 0 {
-		queries.SetSelect(query.Query, []string{"\"friends\".*"})
+			args = append(args, obj.ID)
+		}
 	}
 
-	return query
+	if len(args) == 0 {
+		return nil
+	}
+
+	query := NewQuery(qm.From(`friends`), qm.WhereIn(`friends.integration_id in ?`, args...))
+	if mods != nil {
+		mods.Apply(query)
+	}
+
+	results, err := query.Query(e)
+	if err != nil {
+		return errors.Wrap(err, "failed to eager load Friend")
+	}
+
+	var resultSlice []*Friend
+	if err = queries.Bind(results, &resultSlice); err != nil {
+		return errors.Wrap(err, "failed to bind eager loaded slice Friend")
+	}
+
+	if err = results.Close(); err != nil {
+		return errors.Wrap(err, "failed to close results of eager load for friends")
+	}
+	if err = results.Err(); err != nil {
+		return errors.Wrap(err, "error occurred during iteration of eager loaded relations for friends")
+	}
+
+	if len(integrationAfterSelectHooks) != 0 {
+		for _, obj := range resultSlice {
+			if err := obj.doAfterSelectHooks(e); err != nil {
+				return err
+			}
+		}
+	}
+
+	if len(resultSlice) == 0 {
+		return nil
+	}
+
+	if singular {
+		foreign := resultSlice[0]
+		object.R.Friend = foreign
+		if foreign.R == nil {
+			foreign.R = &friendR{}
+		}
+		foreign.R.Integration = object
+	}
+
+	for _, local := range slice {
+		for _, foreign := range resultSlice {
+			if queries.Equal(local.ID, foreign.IntegrationID) {
+				local.R.Friend = foreign
+				if foreign.R == nil {
+					foreign.R = &friendR{}
+				}
+				foreign.R.Integration = local
+				break
+			}
+		}
+	}
+
+	return nil
 }
 
 // LoadAttendances allows an eager lookup of values, cached into the
@@ -478,98 +574,61 @@ func (integrationL) LoadAttendances(e boil.Executor, singular bool, maybeIntegra
 	return nil
 }
 
-// LoadFriends allows an eager lookup of values, cached into the
-// loaded structs of the objects. This is for a 1-M or N-M relationship.
-func (integrationL) LoadFriends(e boil.Executor, singular bool, maybeIntegration interface{}, mods queries.Applicator) error {
-	var slice []*Integration
-	var object *Integration
+// SetFriendG of the integration to the related item.
+// Sets o.R.Friend to related.
+// Adds o to related.R.Integration.
+// Uses the global database handle.
+func (o *Integration) SetFriendG(insert bool, related *Friend) error {
+	return o.SetFriend(boil.GetDB(), insert, related)
+}
 
-	if singular {
-		object = maybeIntegration.(*Integration)
+// SetFriend of the integration to the related item.
+// Sets o.R.Friend to related.
+// Adds o to related.R.Integration.
+func (o *Integration) SetFriend(exec boil.Executor, insert bool, related *Friend) error {
+	var err error
+
+	if insert {
+		queries.Assign(&related.IntegrationID, o.ID)
+
+		if err = related.Insert(exec, boil.Infer()); err != nil {
+			return errors.Wrap(err, "failed to insert into foreign table")
+		}
 	} else {
-		slice = *maybeIntegration.(*[]*Integration)
+		updateQuery := fmt.Sprintf(
+			"UPDATE \"friends\" SET %s WHERE %s",
+			strmangle.SetParamNames("\"", "\"", 0, []string{"integration_id"}),
+			strmangle.WhereClause("\"", "\"", 0, friendPrimaryKeyColumns),
+		)
+		values := []interface{}{o.ID, related.ID}
+
+		if boil.DebugMode {
+			fmt.Fprintln(boil.DebugWriter, updateQuery)
+			fmt.Fprintln(boil.DebugWriter, values)
+		}
+
+		if _, err = exec.Exec(updateQuery, values...); err != nil {
+			return errors.Wrap(err, "failed to update foreign table")
+		}
+
+		queries.Assign(&related.IntegrationID, o.ID)
 	}
 
-	args := make([]interface{}, 0, 1)
-	if singular {
-		if object.R == nil {
-			object.R = &integrationR{}
+	if o.R == nil {
+		o.R = &integrationR{
+			Friend: related,
 		}
-		args = append(args, object.ID)
 	} else {
-	Outer:
-		for _, obj := range slice {
-			if obj.R == nil {
-				obj.R = &integrationR{}
-			}
+		o.R.Friend = related
+	}
 
-			for _, a := range args {
-				if queries.Equal(a, obj.ID) {
-					continue Outer
-				}
-			}
-
-			args = append(args, obj.ID)
+	if related.R == nil {
+		related.R = &friendR{
+			Integration: o,
 		}
+	} else {
+		related.R.Integration = o
 	}
-
-	if len(args) == 0 {
-		return nil
-	}
-
-	query := NewQuery(qm.From(`friends`), qm.WhereIn(`friends.integration_id in ?`, args...))
-	if mods != nil {
-		mods.Apply(query)
-	}
-
-	results, err := query.Query(e)
-	if err != nil {
-		return errors.Wrap(err, "failed to eager load friends")
-	}
-
-	var resultSlice []*Friend
-	if err = queries.Bind(results, &resultSlice); err != nil {
-		return errors.Wrap(err, "failed to bind eager loaded slice friends")
-	}
-
-	if err = results.Close(); err != nil {
-		return errors.Wrap(err, "failed to close results in eager load on friends")
-	}
-	if err = results.Err(); err != nil {
-		return errors.Wrap(err, "error occurred during iteration of eager loaded relations for friends")
-	}
-
-	if len(friendAfterSelectHooks) != 0 {
-		for _, obj := range resultSlice {
-			if err := obj.doAfterSelectHooks(e); err != nil {
-				return err
-			}
-		}
-	}
-	if singular {
-		object.R.Friends = resultSlice
-		for _, foreign := range resultSlice {
-			if foreign.R == nil {
-				foreign.R = &friendR{}
-			}
-			foreign.R.Integration = object
-		}
-		return nil
-	}
-
-	for _, foreign := range resultSlice {
-		for _, local := range slice {
-			if queries.Equal(local.ID, foreign.IntegrationID) {
-				local.R.Friends = append(local.R.Friends, foreign)
-				if foreign.R == nil {
-					foreign.R = &friendR{}
-				}
-				foreign.R.Integration = local
-				break
-			}
-		}
-	}
-
 	return nil
 }
 
@@ -721,68 +780,6 @@ func (o *Integration) RemoveAttendances(exec boil.Executor, related ...*Attendan
 		}
 	}
 
-	return nil
-}
-
-// AddFriendsG adds the given related objects to the existing relationships
-// of the integration, optionally inserting them as new records.
-// Appends related to o.R.Friends.
-// Sets related.R.Integration appropriately.
-// Uses the global database handle.
-func (o *Integration) AddFriendsG(insert bool, related ...*Friend) error {
-	return o.AddFriends(boil.GetDB(), insert, related...)
-}
-
-// AddFriends adds the given related objects to the existing relationships
-// of the integration, optionally inserting them as new records.
-// Appends related to o.R.Friends.
-// Sets related.R.Integration appropriately.
-func (o *Integration) AddFriends(exec boil.Executor, insert bool, related ...*Friend) error {
-	var err error
-	for _, rel := range related {
-		if insert {
-			queries.Assign(&rel.IntegrationID, o.ID)
-			if err = rel.Insert(exec, boil.Infer()); err != nil {
-				return errors.Wrap(err, "failed to insert into foreign table")
-			}
-		} else {
-			updateQuery := fmt.Sprintf(
-				"UPDATE \"friends\" SET %s WHERE %s",
-				strmangle.SetParamNames("\"", "\"", 0, []string{"integration_id"}),
-				strmangle.WhereClause("\"", "\"", 0, friendPrimaryKeyColumns),
-			)
-			values := []interface{}{o.ID, rel.ID}
-
-			if boil.DebugMode {
-				fmt.Fprintln(boil.DebugWriter, updateQuery)
-				fmt.Fprintln(boil.DebugWriter, values)
-			}
-
-			if _, err = exec.Exec(updateQuery, values...); err != nil {
-				return errors.Wrap(err, "failed to update foreign table")
-			}
-
-			queries.Assign(&rel.IntegrationID, o.ID)
-		}
-	}
-
-	if o.R == nil {
-		o.R = &integrationR{
-			Friends: related,
-		}
-	} else {
-		o.R.Friends = append(o.R.Friends, related...)
-	}
-
-	for _, rel := range related {
-		if rel.R == nil {
-			rel.R = &friendR{
-				Integration: o,
-			}
-		} else {
-			rel.R.Integration = o
-		}
-	}
 	return nil
 }
 

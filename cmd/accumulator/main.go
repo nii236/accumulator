@@ -22,6 +22,7 @@ func connect() (*sqlx.DB, error) {
 }
 func main() {
 	fmt.Println("Booting up accumulator system...")
+	stepMinutes := flag.Int("step-minutes", 5, "Step time between scrapes")
 	rootPath := flag.String("root-path", "./web/dist", "Path of the webapp")
 	serverAddr := flag.String("server-addr", ":8081", "Address to host on")
 	loadBalancerAddr := flag.String("loadbalancer-addr", ":8080", "Address to host on")
@@ -46,7 +47,12 @@ func main() {
 		return accumulator.RunLoadBalancer(ctx, conn, *loadBalancerAddr, *serverAddr, *rootPath, accumulator.NewLogToStdOut("lb", "0.0.1", false))
 	}, func(err error) {
 		fmt.Println(err)
-
+		cancel()
+	})
+	g.Add(func() error {
+		return accumulator.RunAttendanceTracker(ctx, *stepMinutes, accumulator.NewLogToStdOut("attendance", "0.0.1", false))
+	}, func(err error) {
+		fmt.Println(err)
 		cancel()
 	})
 	log.Fatalln(g.Run())

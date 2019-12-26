@@ -26,8 +26,7 @@ type Attendance struct {
 	IntegrationID null.Int64 `boil:"integration_id" json:"integration_id,omitempty" toml:"integration_id" yaml:"integration_id,omitempty"`
 	FriendID      null.Int64 `boil:"friend_id" json:"friend_id,omitempty" toml:"friend_id" yaml:"friend_id,omitempty"`
 	TeacherID     null.Int64 `boil:"teacher_id" json:"teacher_id,omitempty" toml:"teacher_id" yaml:"teacher_id,omitempty"`
-	WorldID       string     `boil:"world_id" json:"world_id" toml:"world_id" yaml:"world_id"`
-	InstanceID    string     `boil:"instance_id" json:"instance_id" toml:"instance_id" yaml:"instance_id"`
+	Location      string     `boil:"location" json:"location" toml:"location" yaml:"location"`
 
 	R *attendanceR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L attendanceL  `boil:"-" json:"-" toml:"-" yaml:"-"`
@@ -38,15 +37,13 @@ var AttendanceColumns = struct {
 	IntegrationID string
 	FriendID      string
 	TeacherID     string
-	WorldID       string
-	InstanceID    string
+	Location      string
 }{
 	Timestamp:     "timestamp",
 	IntegrationID: "integration_id",
 	FriendID:      "friend_id",
 	TeacherID:     "teacher_id",
-	WorldID:       "world_id",
-	InstanceID:    "instance_id",
+	Location:      "location",
 }
 
 // Generated where
@@ -104,15 +101,13 @@ var AttendanceWhere = struct {
 	IntegrationID whereHelpernull_Int64
 	FriendID      whereHelpernull_Int64
 	TeacherID     whereHelpernull_Int64
-	WorldID       whereHelperstring
-	InstanceID    whereHelperstring
+	Location      whereHelperstring
 }{
 	Timestamp:     whereHelperint64{field: "\"attendance\".\"timestamp\""},
 	IntegrationID: whereHelpernull_Int64{field: "\"attendance\".\"integration_id\""},
 	FriendID:      whereHelpernull_Int64{field: "\"attendance\".\"friend_id\""},
 	TeacherID:     whereHelpernull_Int64{field: "\"attendance\".\"teacher_id\""},
-	WorldID:       whereHelperstring{field: "\"attendance\".\"world_id\""},
-	InstanceID:    whereHelperstring{field: "\"attendance\".\"instance_id\""},
+	Location:      whereHelperstring{field: "\"attendance\".\"location\""},
 }
 
 // AttendanceRels is where relationship names are stored.
@@ -142,8 +137,8 @@ func (*attendanceR) NewStruct() *attendanceR {
 type attendanceL struct{}
 
 var (
-	attendanceAllColumns            = []string{"timestamp", "integration_id", "friend_id", "teacher_id", "world_id", "instance_id"}
-	attendanceColumnsWithoutDefault = []string{"timestamp", "integration_id", "friend_id", "teacher_id", "world_id", "instance_id"}
+	attendanceAllColumns            = []string{"timestamp", "integration_id", "friend_id", "teacher_id", "location"}
+	attendanceColumnsWithoutDefault = []string{"timestamp", "integration_id", "friend_id", "teacher_id", "location"}
 	attendanceColumnsWithDefault    = []string{}
 	attendancePrimaryKeyColumns     = []string{"timestamp", "friend_id"}
 )

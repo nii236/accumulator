@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	"github.com/volatiletech/null"
 	"github.com/volatiletech/sqlboiler/boil"
 	"github.com/volatiletech/sqlboiler/queries"
 	"github.com/volatiletech/sqlboiler/queries/qm"
@@ -21,13 +22,15 @@ import (
 
 // Friend is an object representing the database table.
 type Friend struct {
-	ID                            string `boil:"id" json:"id" toml:"id" yaml:"id"`
-	IntegrationID                 int64  `boil:"integration_id" json:"integration_id" toml:"integration_id" yaml:"integration_id"`
-	IsTeacher                     bool   `boil:"is_teacher" json:"is_teacher" toml:"is_teacher" yaml:"is_teacher"`
-	VrchatUsername                string `boil:"vrchat_username" json:"vrchat_username" toml:"vrchat_username" yaml:"vrchat_username"`
-	VrchatDisplayName             string `boil:"vrchat_display_name" json:"vrchat_display_name" toml:"vrchat_display_name" yaml:"vrchat_display_name"`
-	VrchatAvatarImageURL          string `boil:"vrchat_avatar_image_url" json:"vrchat_avatar_image_url" toml:"vrchat_avatar_image_url" yaml:"vrchat_avatar_image_url"`
-	VrchatAvatarThumbnailImageURL string `boil:"vrchat_avatar_thumbnail_image_url" json:"vrchat_avatar_thumbnail_image_url" toml:"vrchat_avatar_thumbnail_image_url" yaml:"vrchat_avatar_thumbnail_image_url"`
+	ID                            null.Int64 `boil:"id" json:"id,omitempty" toml:"id" yaml:"id,omitempty"`
+	IntegrationID                 int64      `boil:"integration_id" json:"integration_id" toml:"integration_id" yaml:"integration_id"`
+	IsTeacher                     bool       `boil:"is_teacher" json:"is_teacher" toml:"is_teacher" yaml:"is_teacher"`
+	VrchatID                      string     `boil:"vrchat_id" json:"vrchat_id" toml:"vrchat_id" yaml:"vrchat_id"`
+	VrchatUsername                string     `boil:"vrchat_username" json:"vrchat_username" toml:"vrchat_username" yaml:"vrchat_username"`
+	VrchatDisplayName             string     `boil:"vrchat_display_name" json:"vrchat_display_name" toml:"vrchat_display_name" yaml:"vrchat_display_name"`
+	VrchatAvatarImageURL          string     `boil:"vrchat_avatar_image_url" json:"vrchat_avatar_image_url" toml:"vrchat_avatar_image_url" yaml:"vrchat_avatar_image_url"`
+	VrchatAvatarThumbnailImageURL string     `boil:"vrchat_avatar_thumbnail_image_url" json:"vrchat_avatar_thumbnail_image_url" toml:"vrchat_avatar_thumbnail_image_url" yaml:"vrchat_avatar_thumbnail_image_url"`
+	VrchatLocation                string     `boil:"vrchat_location" json:"vrchat_location" toml:"vrchat_location" yaml:"vrchat_location"`
 
 	R *friendR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L friendL  `boil:"-" json:"-" toml:"-" yaml:"-"`
@@ -37,18 +40,22 @@ var FriendColumns = struct {
 	ID                            string
 	IntegrationID                 string
 	IsTeacher                     string
+	VrchatID                      string
 	VrchatUsername                string
 	VrchatDisplayName             string
 	VrchatAvatarImageURL          string
 	VrchatAvatarThumbnailImageURL string
+	VrchatLocation                string
 }{
 	ID:                            "id",
 	IntegrationID:                 "integration_id",
 	IsTeacher:                     "is_teacher",
+	VrchatID:                      "vrchat_id",
 	VrchatUsername:                "vrchat_username",
 	VrchatDisplayName:             "vrchat_display_name",
 	VrchatAvatarImageURL:          "vrchat_avatar_image_url",
 	VrchatAvatarThumbnailImageURL: "vrchat_avatar_thumbnail_image_url",
+	VrchatLocation:                "vrchat_location",
 }
 
 // Generated where
@@ -63,21 +70,25 @@ func (w whereHelperbool) GT(x bool) qm.QueryMod  { return qmhelper.Where(w.field
 func (w whereHelperbool) GTE(x bool) qm.QueryMod { return qmhelper.Where(w.field, qmhelper.GTE, x) }
 
 var FriendWhere = struct {
-	ID                            whereHelperstring
+	ID                            whereHelpernull_Int64
 	IntegrationID                 whereHelperint64
 	IsTeacher                     whereHelperbool
+	VrchatID                      whereHelperstring
 	VrchatUsername                whereHelperstring
 	VrchatDisplayName             whereHelperstring
 	VrchatAvatarImageURL          whereHelperstring
 	VrchatAvatarThumbnailImageURL whereHelperstring
+	VrchatLocation                whereHelperstring
 }{
-	ID:                            whereHelperstring{field: "\"friends\".\"id\""},
+	ID:                            whereHelpernull_Int64{field: "\"friends\".\"id\""},
 	IntegrationID:                 whereHelperint64{field: "\"friends\".\"integration_id\""},
 	IsTeacher:                     whereHelperbool{field: "\"friends\".\"is_teacher\""},
+	VrchatID:                      whereHelperstring{field: "\"friends\".\"vrchat_id\""},
 	VrchatUsername:                whereHelperstring{field: "\"friends\".\"vrchat_username\""},
 	VrchatDisplayName:             whereHelperstring{field: "\"friends\".\"vrchat_display_name\""},
 	VrchatAvatarImageURL:          whereHelperstring{field: "\"friends\".\"vrchat_avatar_image_url\""},
 	VrchatAvatarThumbnailImageURL: whereHelperstring{field: "\"friends\".\"vrchat_avatar_thumbnail_image_url\""},
+	VrchatLocation:                whereHelperstring{field: "\"friends\".\"vrchat_location\""},
 }
 
 // FriendRels is where relationship names are stored.
@@ -107,9 +118,9 @@ func (*friendR) NewStruct() *friendR {
 type friendL struct{}
 
 var (
-	friendAllColumns            = []string{"id", "integration_id", "is_teacher", "vrchat_username", "vrchat_display_name", "vrchat_avatar_image_url", "vrchat_avatar_thumbnail_image_url"}
-	friendColumnsWithoutDefault = []string{"id", "integration_id", "vrchat_username", "vrchat_display_name", "vrchat_avatar_image_url", "vrchat_avatar_thumbnail_image_url"}
-	friendColumnsWithDefault    = []string{"is_teacher"}
+	friendAllColumns            = []string{"id", "integration_id", "is_teacher", "vrchat_id", "vrchat_username", "vrchat_display_name", "vrchat_avatar_image_url", "vrchat_avatar_thumbnail_image_url", "vrchat_location"}
+	friendColumnsWithoutDefault = []string{"integration_id", "vrchat_id", "vrchat_username", "vrchat_display_name", "vrchat_avatar_image_url", "vrchat_avatar_thumbnail_image_url", "vrchat_location"}
+	friendColumnsWithDefault    = []string{"id", "is_teacher"}
 	friendPrimaryKeyColumns     = []string{"id"}
 )
 
@@ -506,7 +517,7 @@ func (friendL) LoadIntegration(e boil.Executor, singular bool, maybeFriend inter
 		if foreign.R == nil {
 			foreign.R = &integrationR{}
 		}
-		foreign.R.Friends = append(foreign.R.Friends, object)
+		foreign.R.Friend = object
 		return nil
 	}
 
@@ -517,7 +528,7 @@ func (friendL) LoadIntegration(e boil.Executor, singular bool, maybeFriend inter
 				if foreign.R == nil {
 					foreign.R = &integrationR{}
 				}
-				foreign.R.Friends = append(foreign.R.Friends, local)
+				foreign.R.Friend = local
 				break
 			}
 		}
@@ -721,7 +732,7 @@ func (friendL) LoadTeacherAttendances(e boil.Executor, singular bool, maybeFrien
 
 // SetIntegrationG of the friend to the related item.
 // Sets o.R.Integration to related.
-// Adds o to related.R.Friends.
+// Adds o to related.R.Friend.
 // Uses the global database handle.
 func (o *Friend) SetIntegrationG(insert bool, related *Integration) error {
 	return o.SetIntegration(boil.GetDB(), insert, related)
@@ -729,7 +740,7 @@ func (o *Friend) SetIntegrationG(insert bool, related *Integration) error {
 
 // SetIntegration of the friend to the related item.
 // Sets o.R.Integration to related.
-// Adds o to related.R.Friends.
+// Adds o to related.R.Friend.
 func (o *Friend) SetIntegration(exec boil.Executor, insert bool, related *Integration) error {
 	var err error
 	if insert {
@@ -765,10 +776,10 @@ func (o *Friend) SetIntegration(exec boil.Executor, insert bool, related *Integr
 
 	if related.R == nil {
 		related.R = &integrationR{
-			Friends: FriendSlice{o},
+			Friend: o,
 		}
 	} else {
-		related.R.Friends = append(related.R.Friends, o)
+		related.R.Friend = o
 	}
 
 	return nil
@@ -1018,13 +1029,13 @@ func Friends(mods ...qm.QueryMod) friendQuery {
 }
 
 // FindFriendG retrieves a single record by ID.
-func FindFriendG(iD string, selectCols ...string) (*Friend, error) {
+func FindFriendG(iD null.Int64, selectCols ...string) (*Friend, error) {
 	return FindFriend(boil.GetDB(), iD, selectCols...)
 }
 
 // FindFriend retrieves a single record by ID with an executor.
 // If selectCols is empty Find will return all columns.
-func FindFriend(exec boil.Executor, iD string, selectCols ...string) (*Friend, error) {
+func FindFriend(exec boil.Executor, iD null.Int64, selectCols ...string) (*Friend, error) {
 	friendObj := &Friend{}
 
 	sel := "*"
@@ -1470,12 +1481,12 @@ func (o *FriendSlice) ReloadAll(exec boil.Executor) error {
 }
 
 // FriendExistsG checks if the Friend row exists.
-func FriendExistsG(iD string) (bool, error) {
+func FriendExistsG(iD null.Int64) (bool, error) {
 	return FriendExists(boil.GetDB(), iD)
 }
 
 // FriendExists checks if the Friend row exists.
-func FriendExists(exec boil.Executor, iD string) (bool, error) {
+func FriendExists(exec boil.Executor, iD null.Int64) (bool, error) {
 	var exists bool
 	sql := "select exists(select 1 from \"friends\" where \"id\"=? limit 1)"
 

@@ -1,6 +1,7 @@
 import * as React from "react"
 import MetaTags from "react-meta-tags"
-import { BrowserRouter as Router, Route } from "react-router-dom"
+
+import { BrowserRouter as Router, Route, RouteComponentProps, Switch } from "react-router-dom"
 import { Client as Styletron } from "styletron-engine-atomic"
 import { Provider as StyletronProvider } from "styletron-react"
 import { BaseProvider, useStyletron } from "baseui"
@@ -8,12 +9,15 @@ import { LightTheme, DarkTheme } from "./themeOverrides"
 import { Teachers } from "./pages/Teachers"
 import { Integrations } from "./pages/Integrations"
 import { Friends } from "./pages/Friends"
+import { Nav } from "./components/Nav"
+import { Attendance } from "./pages/Attendance"
 
 const engine = new Styletron()
-const Home = () => {
+interface Props extends RouteComponentProps {}
+const Home = (props: Props) => {
 	return (
 		<>
-			<Integrations />
+			<Integrations {...props} />
 		</>
 	)
 }
@@ -26,13 +30,18 @@ const Routes = () => {
 	return (
 		<div className={routeStyle}>
 			<Router>
-			<Route path="/" component={Home} />
-				{/* <Route path="/signin" component={SignIn} />
+				<Nav />
+				<div>
+					<Switch>
+						<Route exact path="/" component={Home} />
+						{/* <Route path="/signin" component={SignIn} />
 				<Route path="/signup" component={SignUp} /> */}
-				<Route path="/friends" component={Friends} />
-				<Route path="/teachers" component={Teachers} />
-				{/* <Route path={"/verify/:code"} exact render={props => <EmailVerify code={props.match.params.code} />} /> */}
-				{/* <Route path="/verify" exact component={EmailVerify} /> */}
+						<Route exact path="/integrations/:integration_id/friends" component={Friends} />
+						<Route exact path="/integrations/:integration_id/attendance" component={Attendance} />
+						{/* <Route path={"/verify/:code"} exact render={props => <EmailVerify code={props.match.params.code} />} /> */}
+						{/* <Route path="/verify" exact component={EmailVerify} /> */}
+					</Switch>
+				</div>
 			</Router>
 		</div>
 	)

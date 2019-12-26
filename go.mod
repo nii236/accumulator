@@ -15,6 +15,7 @@ require (
 	github.com/oklog/run v1.0.0
 	github.com/pkg/errors v0.8.1
 	github.com/spf13/cast v1.3.1 // indirect
+	github.com/victorspringer/http-cache v0.0.0-20190721184638-fe78e97af707
 	github.com/volatiletech/inflect v0.0.0-20170731032912-e7201282ae8d // indirect
 	github.com/volatiletech/null v8.0.0+incompatible
 	github.com/volatiletech/sqlboiler v3.6.1+incompatible
