@@ -66,12 +66,18 @@ func trackAttendance(integrationID int64, authToken, apiKey string) error {
 		return err
 	}
 
-	for _, vrcfriend := range vrcfriends {
-		for _, teacher := range teachers {
-			currentLocation := ""
+	for _, teacher := range teachers {
+		currentLocation := ""
+		for _, vrcfriend := range vrcfriends {
 			if vrcfriend.ID == teacher.VrchatID {
 				currentLocation = vrcfriend.Location
 			}
+		}
+		if currentLocation := "" || currentLocation := "offline" {
+			log.Errorw("could not get teacher location", "vrc_id", vrcfriend.ID)
+			continue
+		}
+		for _, vrcfriend := range vrcfriends {
 			for _, student := range students {
 				if student.IntegrationID != integrationID {
 					continue
