@@ -23,7 +23,7 @@ export interface friend {
 	vrchat_avatar_thumbnail_image_url: string
 	vrchat_location: string
 }
-interface Props extends RouteComponentProps<{ integration_id: string }> { }
+interface Props extends RouteComponentProps<{ integration_id: string }> {}
 export const Friends = (props: Props) => {
 	const [friends, setFriends] = React.useState<friend[] | null>(null)
 	const [err, setErr] = React.useState<string | null>(null)
@@ -91,43 +91,48 @@ export const Friends = (props: Props) => {
 	return (
 		<div>
 			{err && <Notification kind={KIND.negative}>{err}</Notification>}
-			<h1>Friends</h1>
-			<FlexGrid flexWrap={true} flexDirection={"row"} flexGridColumnCount={3} flexGridColumnGap="scale800" flexGridRowGap="scale800">
-				{friends &&
-					friends.filter(friend => !friend.is_teacher).map(friend => {
-						return (
-							<FlexGridItem key={friend.id} {...itemProps}>
-								<FriendItemContainer
-									key={friend.id}
-									friend={friend}
-									demoteToStudent={demoteToStudent}
-									promoteToTeacher={promoteToTeacher}
-									fetchFriends={fetchFriends}
-									setRedirect={setRedirect}
-									integration_id={props.match.params.integration_id}
-								/>
-							</FlexGridItem>
-						)
-					})}
-			</FlexGrid>
 			<h1>Teachers</h1>
 			<FlexGrid flexWrap={true} flexDirection={"row"} flexGridColumnCount={3} flexGridColumnGap="scale800" flexGridRowGap="scale800">
 				{friends &&
-					friends.filter(friend => friend.is_teacher).map(friend => {
-						return (
-							<FlexGridItem key={friend.id} {...itemProps}>
-								<FriendItemContainer
-									key={friend.id}
-									friend={friend}
-									demoteToStudent={demoteToStudent}
-									promoteToTeacher={promoteToTeacher}
-									fetchFriends={fetchFriends}
-									setRedirect={setRedirect}
-									integration_id={props.match.params.integration_id}
-								/>
-							</FlexGridItem>
-						)
-					})}
+					friends
+						.filter(friend => friend.is_teacher)
+						.map(friend => {
+							return (
+								<FlexGridItem key={friend.id} {...itemProps}>
+									<FriendItemContainer
+										key={friend.id}
+										friend={friend}
+										demoteToStudent={demoteToStudent}
+										promoteToTeacher={promoteToTeacher}
+										fetchFriends={fetchFriends}
+										setRedirect={setRedirect}
+										integration_id={props.match.params.integration_id}
+									/>
+								</FlexGridItem>
+							)
+						})}
+			</FlexGrid>
+			<h1>Friends</h1>
+
+			<FlexGrid flexWrap={true} flexDirection={"row"} flexGridColumnCount={3} flexGridColumnGap="scale800" flexGridRowGap="scale800">
+				{friends &&
+					friends
+						.filter(friend => !friend.is_teacher)
+						.map(friend => {
+							return (
+								<FlexGridItem key={friend.id} {...itemProps}>
+									<FriendItemContainer
+										key={friend.id}
+										friend={friend}
+										demoteToStudent={demoteToStudent}
+										promoteToTeacher={promoteToTeacher}
+										fetchFriends={fetchFriends}
+										setRedirect={setRedirect}
+										integration_id={props.match.params.integration_id}
+									/>
+								</FlexGridItem>
+							)
+						})}
 			</FlexGrid>
 		</div>
 	)
@@ -182,20 +187,24 @@ interface ItemProps {
 const FriendCard = (props: ItemProps) => {
 	const ui = UI.useContainer()
 	return (
-		<Card overrides={{ Root: { style: { width: "100%", height: "100%" } } }} title={<Avatar
-			name={props.title}
-			size="scale2400"
-			overrides={{
-				Root: {
-					style: { display: "block" }
-				},
+		<Card
+			overrides={{ Root: { style: { width: "100%", height: "100%" } } }}
+			title={
+				<Avatar
+					name={props.title}
+					size="scale2400"
+					overrides={{
+						Root: {
+							style: { display: "block" },
+						},
 
-				Avatar: {
-					style: { marginLeft: "auto", marginRight: "auto" }
-				}
-			}}
-			src={props.headerImageURL}
-		/>}>
+						Avatar: {
+							style: { marginLeft: "auto", marginRight: "auto" },
+						},
+					}}
+					src={props.headerImageURL}
+				/>
+			}>
 			<StyledBody>
 				<H2>{props.title}</H2>
 				<p>
