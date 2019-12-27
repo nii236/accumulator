@@ -14,6 +14,7 @@ import { SignIn } from "./pages/SignIn"
 import { SignUp } from "./pages/SignUp"
 import { Spinner } from "baseui/spinner"
 import { UI, useUI } from "./controllers/ui"
+import { H1 } from "baseui/typography"
 
 const engine = new Styletron()
 interface Props extends RouteComponentProps {}
@@ -72,6 +73,7 @@ const Routes = () => {
 			{validAuth === false && (
 				<Router>
 					<div>
+						<H1 overrides={{ Block: { style: { textAlign: "center" } } }}>VRNihongo Accumulator System</H1>
 						<Switch>
 							<Route exact path="/" component={SignIn} />
 							<Route exact path="/sign_up" component={SignUp} />
