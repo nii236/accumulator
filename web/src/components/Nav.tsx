@@ -6,11 +6,14 @@ import { Button } from "baseui/button"
 import { Redirect } from "react-router-dom"
 import { Spinner } from "baseui/spinner"
 import { useUI, UI } from "../controllers/ui"
+import { Modal, ModalHeader, ModalBody, ModalFooter, ModalButton } from "baseui/modal"
 export const Nav = () => {
 	const [thinking, setThinking] = React.useState<boolean>(false)
 	const [redirect, setRedirect] = React.useState<string | null>(null)
 	const [err, setErr] = React.useState<string | null>(null)
 	const { startThinking } = UI.useContainer()
+	const [isOpen, setIsOpen] = React.useState(false)
+
 	if (redirect) {
 		return <Redirect to={redirect} push />
 	}
@@ -35,6 +38,26 @@ export const Nav = () => {
 			<NavigationList $align={ALIGN.left}>
 				<NavigationItem>
 					<Link href="/">Home</Link>
+				</NavigationItem>
+				<NavigationItem>
+					<div
+						style={{ textDecoration: "underline" }}
+						onClick={() => {
+							setIsOpen(true)
+						}}>
+						API Keys
+					</div>
+					<React.Fragment>
+						<Modal onClose={() => setIsOpen(false)} isOpen={isOpen}>
+							<ModalHeader>Hello world</ModalHeader>
+							<ModalBody>
+								Proin ut dui sed metus pharetra hend rerit vel non mi. Nulla ornare faucibus ex, non facilisis nisl. Maecenas aliquet mauris ut tempus.
+							</ModalBody>
+							<ModalFooter>
+								<ModalButton onClick={() => setIsOpen(false)}>Okay</ModalButton>
+							</ModalFooter>
+						</Modal>
+					</React.Fragment>
 				</NavigationItem>
 			</NavigationList>
 			<NavigationList $align={ALIGN.center} />
