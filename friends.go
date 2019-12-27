@@ -2,6 +2,8 @@ package accumulator
 
 import (
 	"accumulator/db"
+	"fmt"
+	"strings"
 
 	vrc "github.com/nii236/vrchat-go/client"
 	"github.com/volatiletech/null"
@@ -22,7 +24,16 @@ func refreshFriendCache(IntegrationID int) error {
 	if err != nil {
 		return err
 	}
+
 	for _, vrcFriend := range vrcResult {
+		// TODO: Handle blob
+		// avatarBlob := &db.Blob{}
+		// err = avatarBlob.InsertG()
+		// if err != nil && !strings.Contains(err.Error(), ErrUnableToPopulate) {
+		// 	fmt.Println(err)
+
+		// }
+
 		record := &db.Friend{
 			IntegrationID:                 int64(IntegrationID),
 			VrchatID:                      vrcFriend.ID,
@@ -36,7 +47,11 @@ func refreshFriendCache(IntegrationID int) error {
 			db.FriendWhere.VrchatID.EQ(vrcFriend.ID),
 		).AllG()
 		if len(existing) == 0 {
-			record.InsertG(boil.Infer())
+			err = record.InsertG(boil.Infer())
+			if err != nil && !strings.Contains(err.Error(), ErrUnableToPopulate) {
+				fmt.Println(err)
+				continue
+			}
 			continue
 		}
 		updateMany := db.M{

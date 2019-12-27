@@ -27,6 +27,10 @@ type Attendance struct {
 	FriendID      null.Int64 `boil:"friend_id" json:"friend_id,omitempty" toml:"friend_id" yaml:"friend_id,omitempty"`
 	TeacherID     null.Int64 `boil:"teacher_id" json:"teacher_id,omitempty" toml:"teacher_id" yaml:"teacher_id,omitempty"`
 	Location      string     `boil:"location" json:"location" toml:"location" yaml:"location"`
+	Archived      bool       `boil:"archived" json:"archived" toml:"archived" yaml:"archived"`
+	ArchivedAt    null.Time  `boil:"archived_at" json:"archived_at,omitempty" toml:"archived_at" yaml:"archived_at,omitempty"`
+	UpdatedAt     time.Time  `boil:"updated_at" json:"updated_at" toml:"updated_at" yaml:"updated_at"`
+	CreatedAt     time.Time  `boil:"created_at" json:"created_at" toml:"created_at" yaml:"created_at"`
 
 	R *attendanceR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L attendanceL  `boil:"-" json:"-" toml:"-" yaml:"-"`
@@ -38,12 +42,20 @@ var AttendanceColumns = struct {
 	FriendID      string
 	TeacherID     string
 	Location      string
+	Archived      string
+	ArchivedAt    string
+	UpdatedAt     string
+	CreatedAt     string
 }{
 	Timestamp:     "timestamp",
 	IntegrationID: "integration_id",
 	FriendID:      "friend_id",
 	TeacherID:     "teacher_id",
 	Location:      "location",
+	Archived:      "archived",
+	ArchivedAt:    "archived_at",
+	UpdatedAt:     "updated_at",
+	CreatedAt:     "created_at",
 }
 
 // Generated where
@@ -96,18 +108,79 @@ func (w whereHelperstring) IN(slice []string) qm.QueryMod {
 	return qm.WhereIn(fmt.Sprintf("%s IN ?", w.field), values...)
 }
 
+type whereHelperbool struct{ field string }
+
+func (w whereHelperbool) EQ(x bool) qm.QueryMod  { return qmhelper.Where(w.field, qmhelper.EQ, x) }
+func (w whereHelperbool) NEQ(x bool) qm.QueryMod { return qmhelper.Where(w.field, qmhelper.NEQ, x) }
+func (w whereHelperbool) LT(x bool) qm.QueryMod  { return qmhelper.Where(w.field, qmhelper.LT, x) }
+func (w whereHelperbool) LTE(x bool) qm.QueryMod { return qmhelper.Where(w.field, qmhelper.LTE, x) }
+func (w whereHelperbool) GT(x bool) qm.QueryMod  { return qmhelper.Where(w.field, qmhelper.GT, x) }
+func (w whereHelperbool) GTE(x bool) qm.QueryMod { return qmhelper.Where(w.field, qmhelper.GTE, x) }
+
+type whereHelpernull_Time struct{ field string }
+
+func (w whereHelpernull_Time) EQ(x null.Time) qm.QueryMod {
+	return qmhelper.WhereNullEQ(w.field, false, x)
+}
+func (w whereHelpernull_Time) NEQ(x null.Time) qm.QueryMod {
+	return qmhelper.WhereNullEQ(w.field, true, x)
+}
+func (w whereHelpernull_Time) IsNull() qm.QueryMod    { return qmhelper.WhereIsNull(w.field) }
+func (w whereHelpernull_Time) IsNotNull() qm.QueryMod { return qmhelper.WhereIsNotNull(w.field) }
+func (w whereHelpernull_Time) LT(x null.Time) qm.QueryMod {
+	return qmhelper.Where(w.field, qmhelper.LT, x)
+}
+func (w whereHelpernull_Time) LTE(x null.Time) qm.QueryMod {
+	return qmhelper.Where(w.field, qmhelper.LTE, x)
+}
+func (w whereHelpernull_Time) GT(x null.Time) qm.QueryMod {
+	return qmhelper.Where(w.field, qmhelper.GT, x)
+}
+func (w whereHelpernull_Time) GTE(x null.Time) qm.QueryMod {
+	return qmhelper.Where(w.field, qmhelper.GTE, x)
+}
+
+type whereHelpertime_Time struct{ field string }
+
+func (w whereHelpertime_Time) EQ(x time.Time) qm.QueryMod {
+	return qmhelper.Where(w.field, qmhelper.EQ, x)
+}
+func (w whereHelpertime_Time) NEQ(x time.Time) qm.QueryMod {
+	return qmhelper.Where(w.field, qmhelper.NEQ, x)
+}
+func (w whereHelpertime_Time) LT(x time.Time) qm.QueryMod {
+	return qmhelper.Where(w.field, qmhelper.LT, x)
+}
+func (w whereHelpertime_Time) LTE(x time.Time) qm.QueryMod {
+	return qmhelper.Where(w.field, qmhelper.LTE, x)
+}
+func (w whereHelpertime_Time) GT(x time.Time) qm.QueryMod {
+	return qmhelper.Where(w.field, qmhelper.GT, x)
+}
+func (w whereHelpertime_Time) GTE(x time.Time) qm.QueryMod {
+	return qmhelper.Where(w.field, qmhelper.GTE, x)
+}
+
 var AttendanceWhere = struct {
 	Timestamp     whereHelperint64
 	IntegrationID whereHelpernull_Int64
 	FriendID      whereHelpernull_Int64
 	TeacherID     whereHelpernull_Int64
 	Location      whereHelperstring
+	Archived      whereHelperbool
+	ArchivedAt    whereHelpernull_Time
+	UpdatedAt     whereHelpertime_Time
+	CreatedAt     whereHelpertime_Time
 }{
 	Timestamp:     whereHelperint64{field: "\"attendance\".\"timestamp\""},
 	IntegrationID: whereHelpernull_Int64{field: "\"attendance\".\"integration_id\""},
 	FriendID:      whereHelpernull_Int64{field: "\"attendance\".\"friend_id\""},
 	TeacherID:     whereHelpernull_Int64{field: "\"attendance\".\"teacher_id\""},
 	Location:      whereHelperstring{field: "\"attendance\".\"location\""},
+	Archived:      whereHelperbool{field: "\"attendance\".\"archived\""},
+	ArchivedAt:    whereHelpernull_Time{field: "\"attendance\".\"archived_at\""},
+	UpdatedAt:     whereHelpertime_Time{field: "\"attendance\".\"updated_at\""},
+	CreatedAt:     whereHelpertime_Time{field: "\"attendance\".\"created_at\""},
 }
 
 // AttendanceRels is where relationship names are stored.
@@ -137,9 +210,9 @@ func (*attendanceR) NewStruct() *attendanceR {
 type attendanceL struct{}
 
 var (
-	attendanceAllColumns            = []string{"timestamp", "integration_id", "friend_id", "teacher_id", "location"}
-	attendanceColumnsWithoutDefault = []string{"timestamp", "integration_id", "friend_id", "teacher_id", "location"}
-	attendanceColumnsWithDefault    = []string{}
+	attendanceAllColumns            = []string{"timestamp", "integration_id", "friend_id", "teacher_id", "location", "archived", "archived_at", "updated_at", "created_at"}
+	attendanceColumnsWithoutDefault = []string{"timestamp", "integration_id", "friend_id", "teacher_id", "location", "archived_at"}
+	attendanceColumnsWithDefault    = []string{"archived", "updated_at", "created_at"}
 	attendancePrimaryKeyColumns     = []string{"timestamp", "integration_id", "friend_id"}
 )
 
@@ -1069,6 +1142,14 @@ func (o *Attendance) Insert(exec boil.Executor, columns boil.Columns) error {
 	}
 
 	var err error
+	currTime := time.Now().In(boil.GetLocation())
+
+	if o.UpdatedAt.IsZero() {
+		o.UpdatedAt = currTime
+	}
+	if o.CreatedAt.IsZero() {
+		o.CreatedAt = currTime
+	}
 
 	if err := o.doBeforeInsertHooks(exec); err != nil {
 		return err
@@ -1168,6 +1249,10 @@ func (o *Attendance) UpdateG(columns boil.Columns) (int64, error) {
 // See boil.Columns.UpdateColumnSet documentation to understand column list inference for updates.
 // Update does not automatically update the record in case of default values. Use .Reload() to refresh the records.
 func (o *Attendance) Update(exec boil.Executor, columns boil.Columns) (int64, error) {
+	currTime := time.Now().In(boil.GetLocation())
+
+	o.UpdatedAt = currTime
+
 	var err error
 	if err = o.doBeforeUpdateHooks(exec); err != nil {
 		return 0, err

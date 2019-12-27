@@ -1,0 +1,17 @@
+settings:
+schema:
+  - name: server
+    path: ./cmd/accumulator
+    commands:
+      run:
+        status: true
+    watcher:
+      extensions:
+        - go
+      paths:
+        - ../..
+      ignore:
+        paths:
+          - .git
+          - .realize
+          - ../../web

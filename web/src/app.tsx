@@ -1,6 +1,6 @@
 import * as React from "react"
 import MetaTags from "react-meta-tags"
-import { BrowserRouter as Router, Route, RouteComponentProps, Switch } from "react-router-dom"
+import { BrowserRouter as Router, Route, RouteComponentProps, Switch, Redirect } from "react-router-dom"
 import { Client as Styletron } from "styletron-engine-atomic"
 import { Provider as StyletronProvider } from "styletron-react"
 import { BaseProvider, useStyletron } from "baseui"
@@ -11,6 +11,9 @@ import { Friends } from "./pages/Friends"
 import { Nav } from "./components/Nav"
 import { Attendance } from "./pages/Attendance"
 import { SignIn } from "./pages/SignIn"
+import { SignUp } from "./pages/SignUp"
+import { Spinner } from "baseui/spinner"
+import { UI, useUI } from "./controllers/ui"
 
 const engine = new Styletron()
 interface Props extends RouteComponentProps {}
@@ -23,31 +26,38 @@ const Home = (props: Props) => {
 }
 const Routes = () => {
 	const [css, theme] = useStyletron()
-	const [validAuth, setValidAuth] = React.useState<boolean>(false)
+	const ui = UI.useContainer()
+	const [validAuth, setValidAuth] = React.useState<boolean | null>(null)
 	const routeStyle: string = css({
 		width: "100%",
 		minHeight: "100vh",
 	})
+
 	const authCheck = async () => {
+		ui.startThinking()
 		try {
 			const res = await fetch("/api/auth/check")
 			if (!res.ok) {
 				const err = await res.text()
 				throw new Error(err)
 			}
-
 			setValidAuth(true)
 		} catch (err) {
 			console.error(err)
 			setValidAuth(false)
 		}
+		ui.stopThinking()
 	}
 	React.useEffect(() => {
 		authCheck()
 	}, [])
+
+	if (validAuth === null || ui.thinking) {
+		return <Spinner overrides={{ Svg: { style: { marginTop: "10rem", display: "block", marginLeft: "auto", marginRight: "auto" } } }} />
+	}
 	return (
 		<div className={routeStyle}>
-			{validAuth && (
+			{validAuth === true && (
 				<Router>
 					<Nav />
 					<div>
@@ -59,13 +69,12 @@ const Routes = () => {
 					</div>
 				</Router>
 			)}
-			{!validAuth && (
+			{validAuth === false && (
 				<Router>
-					<Nav />
 					<div>
 						<Switch>
-							<Route path="/" component={SignIn} />
-							{/* <Route path="/signup" component={SignUp} /> */}
+							<Route exact path="/" component={SignIn} />
+							<Route exact path="/sign_up" component={SignUp} />
 						</Switch>
 					</div>
 				</Router>
@@ -86,7 +95,9 @@ const App = () => {
 					<meta id="og-title" property="og:title" content="MyApp" />
 					<meta id="og-image" property="og:image" content="path/to/image.jpg" />
 				</MetaTags>
-				<Routes />
+				<UI.Provider>
+					<Routes />
+				</UI.Provider>
 			</BaseProvider>
 		</StyletronProvider>
 	)

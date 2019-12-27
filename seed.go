@@ -92,9 +92,10 @@ func integrationFactory(userID int64) *db.Integration {
 	return data
 }
 func userFactory() *db.User {
+
 	data := &db.User{
 		Email:        faker.Email(),
-		PasswordHash: faker.Password(),
+		PasswordHash: HashPassword("password"),
 	}
 
 	return data

@@ -57,7 +57,7 @@ func (a *Auther) FromContext(ctx context.Context) (*db.User, error) {
 }
 
 // HashPassword encrypts a plaintext string and returns the hashed version in base64
-func (a *Auther) HashPassword(password string) string {
+func HashPassword(password string) string {
 	hashed, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
 		panic(err)

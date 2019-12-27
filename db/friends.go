@@ -31,6 +31,10 @@ type Friend struct {
 	VrchatAvatarImageURL          string     `boil:"vrchat_avatar_image_url" json:"vrchat_avatar_image_url" toml:"vrchat_avatar_image_url" yaml:"vrchat_avatar_image_url"`
 	VrchatAvatarThumbnailImageURL string     `boil:"vrchat_avatar_thumbnail_image_url" json:"vrchat_avatar_thumbnail_image_url" toml:"vrchat_avatar_thumbnail_image_url" yaml:"vrchat_avatar_thumbnail_image_url"`
 	VrchatLocation                string     `boil:"vrchat_location" json:"vrchat_location" toml:"vrchat_location" yaml:"vrchat_location"`
+	Archived                      bool       `boil:"archived" json:"archived" toml:"archived" yaml:"archived"`
+	ArchivedAt                    null.Time  `boil:"archived_at" json:"archived_at,omitempty" toml:"archived_at" yaml:"archived_at,omitempty"`
+	UpdatedAt                     time.Time  `boil:"updated_at" json:"updated_at" toml:"updated_at" yaml:"updated_at"`
+	CreatedAt                     time.Time  `boil:"created_at" json:"created_at" toml:"created_at" yaml:"created_at"`
 
 	R *friendR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L friendL  `boil:"-" json:"-" toml:"-" yaml:"-"`
@@ -46,6 +50,10 @@ var FriendColumns = struct {
 	VrchatAvatarImageURL          string
 	VrchatAvatarThumbnailImageURL string
 	VrchatLocation                string
+	Archived                      string
+	ArchivedAt                    string
+	UpdatedAt                     string
+	CreatedAt                     string
 }{
 	ID:                            "id",
 	IntegrationID:                 "integration_id",
@@ -56,18 +64,13 @@ var FriendColumns = struct {
 	VrchatAvatarImageURL:          "vrchat_avatar_image_url",
 	VrchatAvatarThumbnailImageURL: "vrchat_avatar_thumbnail_image_url",
 	VrchatLocation:                "vrchat_location",
+	Archived:                      "archived",
+	ArchivedAt:                    "archived_at",
+	UpdatedAt:                     "updated_at",
+	CreatedAt:                     "created_at",
 }
 
 // Generated where
-
-type whereHelperbool struct{ field string }
-
-func (w whereHelperbool) EQ(x bool) qm.QueryMod  { return qmhelper.Where(w.field, qmhelper.EQ, x) }
-func (w whereHelperbool) NEQ(x bool) qm.QueryMod { return qmhelper.Where(w.field, qmhelper.NEQ, x) }
-func (w whereHelperbool) LT(x bool) qm.QueryMod  { return qmhelper.Where(w.field, qmhelper.LT, x) }
-func (w whereHelperbool) LTE(x bool) qm.QueryMod { return qmhelper.Where(w.field, qmhelper.LTE, x) }
-func (w whereHelperbool) GT(x bool) qm.QueryMod  { return qmhelper.Where(w.field, qmhelper.GT, x) }
-func (w whereHelperbool) GTE(x bool) qm.QueryMod { return qmhelper.Where(w.field, qmhelper.GTE, x) }
 
 var FriendWhere = struct {
 	ID                            whereHelpernull_Int64
@@ -79,6 +82,10 @@ var FriendWhere = struct {
 	VrchatAvatarImageURL          whereHelperstring
 	VrchatAvatarThumbnailImageURL whereHelperstring
 	VrchatLocation                whereHelperstring
+	Archived                      whereHelperbool
+	ArchivedAt                    whereHelpernull_Time
+	UpdatedAt                     whereHelpertime_Time
+	CreatedAt                     whereHelpertime_Time
 }{
 	ID:                            whereHelpernull_Int64{field: "\"friends\".\"id\""},
 	IntegrationID:                 whereHelperint64{field: "\"friends\".\"integration_id\""},
@@ -89,6 +96,10 @@ var FriendWhere = struct {
 	VrchatAvatarImageURL:          whereHelperstring{field: "\"friends\".\"vrchat_avatar_image_url\""},
 	VrchatAvatarThumbnailImageURL: whereHelperstring{field: "\"friends\".\"vrchat_avatar_thumbnail_image_url\""},
 	VrchatLocation:                whereHelperstring{field: "\"friends\".\"vrchat_location\""},
+	Archived:                      whereHelperbool{field: "\"friends\".\"archived\""},
+	ArchivedAt:                    whereHelpernull_Time{field: "\"friends\".\"archived_at\""},
+	UpdatedAt:                     whereHelpertime_Time{field: "\"friends\".\"updated_at\""},
+	CreatedAt:                     whereHelpertime_Time{field: "\"friends\".\"created_at\""},
 }
 
 // FriendRels is where relationship names are stored.
@@ -118,9 +129,9 @@ func (*friendR) NewStruct() *friendR {
 type friendL struct{}
 
 var (
-	friendAllColumns            = []string{"id", "integration_id", "is_teacher", "vrchat_id", "vrchat_username", "vrchat_display_name", "vrchat_avatar_image_url", "vrchat_avatar_thumbnail_image_url", "vrchat_location"}
-	friendColumnsWithoutDefault = []string{"integration_id", "vrchat_id", "vrchat_username", "vrchat_display_name", "vrchat_avatar_image_url", "vrchat_avatar_thumbnail_image_url", "vrchat_location"}
-	friendColumnsWithDefault    = []string{"id", "is_teacher"}
+	friendAllColumns            = []string{"id", "integration_id", "is_teacher", "vrchat_id", "vrchat_username", "vrchat_display_name", "vrchat_avatar_image_url", "vrchat_avatar_thumbnail_image_url", "vrchat_location", "archived", "archived_at", "updated_at", "created_at"}
+	friendColumnsWithoutDefault = []string{"integration_id", "vrchat_id", "vrchat_username", "vrchat_display_name", "vrchat_avatar_image_url", "vrchat_avatar_thumbnail_image_url", "vrchat_location", "archived_at"}
+	friendColumnsWithDefault    = []string{"id", "is_teacher", "archived", "updated_at", "created_at"}
 	friendPrimaryKeyColumns     = []string{"id"}
 )
 
@@ -1072,6 +1083,14 @@ func (o *Friend) Insert(exec boil.Executor, columns boil.Columns) error {
 	}
 
 	var err error
+	currTime := time.Now().In(boil.GetLocation())
+
+	if o.UpdatedAt.IsZero() {
+		o.UpdatedAt = currTime
+	}
+	if o.CreatedAt.IsZero() {
+		o.CreatedAt = currTime
+	}
 
 	if err := o.doBeforeInsertHooks(exec); err != nil {
 		return err
@@ -1169,6 +1188,10 @@ func (o *Friend) UpdateG(columns boil.Columns) (int64, error) {
 // See boil.Columns.UpdateColumnSet documentation to understand column list inference for updates.
 // Update does not automatically update the record in case of default values. Use .Reload() to refresh the records.
 func (o *Friend) Update(exec boil.Executor, columns boil.Columns) (int64, error) {
+	currTime := time.Now().In(boil.GetLocation())
+
+	o.UpdatedAt = currTime
+
 	var err error
 	if err = o.doBeforeUpdateHooks(exec); err != nil {
 		return 0, err

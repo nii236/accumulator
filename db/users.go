@@ -25,6 +25,10 @@ type User struct {
 	ID           null.Int64 `boil:"id" json:"id,omitempty" toml:"id" yaml:"id,omitempty"`
 	Email        string     `boil:"email" json:"email" toml:"email" yaml:"email"`
 	PasswordHash string     `boil:"password_hash" json:"password_hash" toml:"password_hash" yaml:"password_hash"`
+	Archived     bool       `boil:"archived" json:"archived" toml:"archived" yaml:"archived"`
+	ArchivedAt   null.Time  `boil:"archived_at" json:"archived_at,omitempty" toml:"archived_at" yaml:"archived_at,omitempty"`
+	UpdatedAt    time.Time  `boil:"updated_at" json:"updated_at" toml:"updated_at" yaml:"updated_at"`
+	CreatedAt    time.Time  `boil:"created_at" json:"created_at" toml:"created_at" yaml:"created_at"`
 
 	R *userR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L userL  `boil:"-" json:"-" toml:"-" yaml:"-"`
@@ -34,10 +38,18 @@ var UserColumns = struct {
 	ID           string
 	Email        string
 	PasswordHash string
+	Archived     string
+	ArchivedAt   string
+	UpdatedAt    string
+	CreatedAt    string
 }{
 	ID:           "id",
 	Email:        "email",
 	PasswordHash: "password_hash",
+	Archived:     "archived",
+	ArchivedAt:   "archived_at",
+	UpdatedAt:    "updated_at",
+	CreatedAt:    "created_at",
 }
 
 // Generated where
@@ -46,10 +58,18 @@ var UserWhere = struct {
 	ID           whereHelpernull_Int64
 	Email        whereHelperstring
 	PasswordHash whereHelperstring
+	Archived     whereHelperbool
+	ArchivedAt   whereHelpernull_Time
+	UpdatedAt    whereHelpertime_Time
+	CreatedAt    whereHelpertime_Time
 }{
 	ID:           whereHelpernull_Int64{field: "\"users\".\"id\""},
 	Email:        whereHelperstring{field: "\"users\".\"email\""},
 	PasswordHash: whereHelperstring{field: "\"users\".\"password_hash\""},
+	Archived:     whereHelperbool{field: "\"users\".\"archived\""},
+	ArchivedAt:   whereHelpernull_Time{field: "\"users\".\"archived_at\""},
+	UpdatedAt:    whereHelpertime_Time{field: "\"users\".\"updated_at\""},
+	CreatedAt:    whereHelpertime_Time{field: "\"users\".\"created_at\""},
 }
 
 // UserRels is where relationship names are stored.
@@ -73,9 +93,9 @@ func (*userR) NewStruct() *userR {
 type userL struct{}
 
 var (
-	userAllColumns            = []string{"id", "email", "password_hash"}
-	userColumnsWithoutDefault = []string{"email", "password_hash"}
-	userColumnsWithDefault    = []string{"id"}
+	userAllColumns            = []string{"id", "email", "password_hash", "archived", "archived_at", "updated_at", "created_at"}
+	userColumnsWithoutDefault = []string{"email", "password_hash", "archived_at"}
+	userColumnsWithDefault    = []string{"id", "archived", "updated_at", "created_at"}
 	userPrimaryKeyColumns     = []string{"id"}
 )
 
@@ -566,6 +586,14 @@ func (o *User) Insert(exec boil.Executor, columns boil.Columns) error {
 	}
 
 	var err error
+	currTime := time.Now().In(boil.GetLocation())
+
+	if o.UpdatedAt.IsZero() {
+		o.UpdatedAt = currTime
+	}
+	if o.CreatedAt.IsZero() {
+		o.CreatedAt = currTime
+	}
 
 	if err := o.doBeforeInsertHooks(exec); err != nil {
 		return err
@@ -663,6 +691,10 @@ func (o *User) UpdateG(columns boil.Columns) (int64, error) {
 // See boil.Columns.UpdateColumnSet documentation to understand column list inference for updates.
 // Update does not automatically update the record in case of default values. Use .Reload() to refresh the records.
 func (o *User) Update(exec boil.Executor, columns boil.Columns) (int64, error) {
+	currTime := time.Now().In(boil.GetLocation())
+
+	o.UpdatedAt = currTime
+
 	var err error
 	if err = o.doBeforeUpdateHooks(exec); err != nil {
 		return 0, err

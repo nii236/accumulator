@@ -9,6 +9,7 @@ import { Button } from "baseui/button"
 import { FlexGrid, FlexGridItem } from "baseui/flex-grid"
 import { BlockProps } from "baseui/block"
 import { Root } from "baseui/toast"
+import { UI } from "../controllers/ui"
 export interface friend {
 	id: number
 	is_teacher: boolean
@@ -69,13 +70,6 @@ export const Friends = (props: Props) => {
 			setErr(err.toString())
 		}
 	}
-	const itemProps: BlockProps = {
-		backgroundColor: "mono300",
-		// height: "scale1000",
-		display: "flex",
-		alignItems: "center",
-		justifyContent: "center",
-	}
 
 	if (thinking) {
 		return <Spinner overrides={{ Svg: { style: { marginTop: "10rem", display: "block", marginLeft: "auto", marginRight: "auto" } } }} />
@@ -84,72 +78,137 @@ export const Friends = (props: Props) => {
 		return <Redirect to={redirect} push />
 	}
 	if (!friends) return <p>No data</p>
+	const itemProps: BlockProps = {
+		// backgroundColor: "mono300",
+		// height: "scale1000",
+		display: "flex",
+		// alignItems: "center",
+		// justifyContent: "center",
+	}
 	return (
 		<div>
 			{err && <Notification kind={KIND.negative}>{err}</Notification>}
 			<h1>Friends</h1>
-			<FlexGrid flexGridColumnCount={3} flexGridColumnGap="scale800" flexGridRowGap="scale800">
+			<FlexGrid flexWrap={true} flexDirection={"row"} flexGridColumnCount={3} flexGridColumnGap="scale800" flexGridRowGap="scale800">
 				{friends &&
 					friends.map(friend => {
 						return (
 							<FlexGridItem key={friend.id} {...itemProps}>
-								<Card
-									overrides={{ Root: { style: { width: "100%", height: "100%" } } }}
-									headerImage={friend.vrchat_avatar_image_url}
-									title={friend.vrchat_display_name}>
-									<StyledBody>
-										<p>
-											<em>{friend.is_teacher ? "teacher" : "student"}</em>
-										</p>
-										<p>
-											<em>{friend.vrchat_location}</em>
-										</p>
-									</StyledBody>
-									<StyledAction>
-										{friend.is_teacher && (
-											<>
-												<Button
-													onClick={async () => {
-														setThinking(true)
-														await demoteToStudent(friend.vrchat_id)
-														await fetchFriends()
-														setThinking(false)
-													}}
-													overrides={{
-														BaseButton: { style: { width: "100%" } },
-													}}>
-													Set as student
-												</Button>
-
-												<Button
-													onClick={() => setRedirect(`/integrations/${props.match.params.integration_id}/attendance/${friend.id}`)}
-													overrides={{
-														BaseButton: { style: { width: "100%" } },
-													}}>
-													View attendances
-												</Button>
-											</>
-										)}
-										{!friend.is_teacher && (
-											<Button
-												onClick={async () => {
-													setThinking(true)
-													await promoteToTeacher(friend.vrchat_id)
-													await fetchFriends()
-													setThinking(false)
-												}}
-												overrides={{
-													BaseButton: { style: { width: "100%" } },
-												}}>
-												Set as teacher
-											</Button>
-										)}
-									</StyledAction>
-								</Card>
+								<FriendItemContainer
+									key={friend.id}
+									friend={friend}
+									demoteToStudent={demoteToStudent}
+									promoteToTeacher={promoteToTeacher}
+									fetchFriends={fetchFriends}
+									setRedirect={setRedirect}
+									integration_id={props.match.params.integration_id}
+								/>
 							</FlexGridItem>
 						)
 					})}
 			</FlexGrid>
 		</div>
+	)
+}
+interface FriendItemContainerProps {
+	friend: friend
+	demoteToStudent: (friendID: string) => void
+	promoteToTeacher: (friendID: string) => void
+	fetchFriends: () => void
+	setRedirect: (url: string) => void
+	integration_id: string
+}
+const FriendItemContainer = (props: FriendItemContainerProps) => {
+	const role = props.friend.is_teacher ? "teacher" : "student"
+	const location = props.friend.vrchat_location
+	const demote = () => {
+		props.demoteToStudent(props.friend.vrchat_id)
+	}
+	const promote = () => {
+		props.promoteToTeacher(props.friend.vrchat_id)
+	}
+	const fetch = () => {
+		props.fetchFriends()
+	}
+	const redirectToAttendance = () => {
+		props.setRedirect(`/integrations/${props.integration_id}/attendance/${props.friend.id}`)
+	}
+	return (
+		<FriendCard
+			role={role}
+			location={location}
+			demote={demote}
+			promote={promote}
+			fetch={fetch}
+			redirectToAttendance={redirectToAttendance}
+			headerImageURL={props.friend.vrchat_avatar_image_url}
+			title={props.friend.vrchat_display_name}
+		/>
+	)
+}
+
+interface ItemProps {
+	role: "student" | "teacher"
+	location: string
+	demote: () => void
+	promote: () => void
+	fetch: () => void
+	redirectToAttendance: () => void
+	headerImageURL: string
+	title: string
+}
+const FriendCard = (props: ItemProps) => {
+	const ui = UI.useContainer()
+	return (
+		<Card overrides={{ Root: { style: { width: "100%", height: "100%" } } }} headerImage={props.headerImageURL} title={props.title}>
+			<StyledBody>
+				<p>
+					<em>{props.role}</em>
+				</p>
+				<p>
+					<em>{props.location}</em>
+				</p>
+			</StyledBody>
+			<StyledAction>
+				{props.role == "teacher" && (
+					<>
+						<Button
+							onClick={async () => {
+								ui.startThinking()
+								await props.demote()
+								await props.fetch()
+								ui.stopThinking()
+							}}
+							overrides={{
+								BaseButton: { style: { width: "100%" } },
+							}}>
+							Set as student
+						</Button>
+
+						<Button
+							onClick={() => props.redirectToAttendance()}
+							overrides={{
+								BaseButton: { style: { width: "100%" } },
+							}}>
+							View attendances
+						</Button>
+					</>
+				)}
+				{props.role !== "teacher" && (
+					<Button
+						onClick={async () => {
+							ui.startThinking()
+							await props.promote()
+							await props.fetch()
+							ui.stopThinking()
+						}}
+						overrides={{
+							BaseButton: { style: { width: "100%" } },
+						}}>
+						Set as teacher
+					</Button>
+				)}
+			</StyledAction>
+		</Card>
 	)
 }

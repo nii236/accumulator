@@ -39,8 +39,7 @@
 		"react-router-dom": "^5.1.2",
 		"styletron-engine-atomic": "^1.4.1",
 		"styletron-react": "^5.2.1",
-		"subscriptions-transport-ws": "^0.9.16",
-		"unstated-next": "^1.1.0"
+		"subscriptions-transport-ws": "^0.9.16"
 	},
 	"devDependencies": {
 		"@babel/core": "^7.5.5",
@@ -67,6 +66,7 @@
 		"style-loader": "^0.23.1",
 		"ts-loader": "^6.2.1",
 		"typescript": "^3.5.3",
+		"unstated-next": "^1.1.0",
 		"url-loader": "^2.1.0",
 		"webpack": "^4.39.1",
 		"webpack-cli": "^3.3.6"
