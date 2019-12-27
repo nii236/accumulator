@@ -25,6 +25,7 @@ type User struct {
 	ID           null.Int64 `boil:"id" json:"id,omitempty" toml:"id" yaml:"id,omitempty"`
 	Email        string     `boil:"email" json:"email" toml:"email" yaml:"email"`
 	PasswordHash string     `boil:"password_hash" json:"password_hash" toml:"password_hash" yaml:"password_hash"`
+	Role         string     `boil:"role" json:"role" toml:"role" yaml:"role"`
 	Archived     bool       `boil:"archived" json:"archived" toml:"archived" yaml:"archived"`
 	ArchivedAt   null.Time  `boil:"archived_at" json:"archived_at,omitempty" toml:"archived_at" yaml:"archived_at,omitempty"`
 	UpdatedAt    time.Time  `boil:"updated_at" json:"updated_at" toml:"updated_at" yaml:"updated_at"`
@@ -38,6 +39,7 @@ var UserColumns = struct {
 	ID           string
 	Email        string
 	PasswordHash string
+	Role         string
 	Archived     string
 	ArchivedAt   string
 	UpdatedAt    string
@@ -46,6 +48,7 @@ var UserColumns = struct {
 	ID:           "id",
 	Email:        "email",
 	PasswordHash: "password_hash",
+	Role:         "role",
 	Archived:     "archived",
 	ArchivedAt:   "archived_at",
 	UpdatedAt:    "updated_at",
@@ -58,6 +61,7 @@ var UserWhere = struct {
 	ID           whereHelpernull_Int64
 	Email        whereHelperstring
 	PasswordHash whereHelperstring
+	Role         whereHelperstring
 	Archived     whereHelperbool
 	ArchivedAt   whereHelpernull_Time
 	UpdatedAt    whereHelpertime_Time
@@ -66,6 +70,7 @@ var UserWhere = struct {
 	ID:           whereHelpernull_Int64{field: "\"users\".\"id\""},
 	Email:        whereHelperstring{field: "\"users\".\"email\""},
 	PasswordHash: whereHelperstring{field: "\"users\".\"password_hash\""},
+	Role:         whereHelperstring{field: "\"users\".\"role\""},
 	Archived:     whereHelperbool{field: "\"users\".\"archived\""},
 	ArchivedAt:   whereHelpernull_Time{field: "\"users\".\"archived_at\""},
 	UpdatedAt:    whereHelpertime_Time{field: "\"users\".\"updated_at\""},
@@ -93,9 +98,9 @@ func (*userR) NewStruct() *userR {
 type userL struct{}
 
 var (
-	userAllColumns            = []string{"id", "email", "password_hash", "archived", "archived_at", "updated_at", "created_at"}
+	userAllColumns            = []string{"id", "email", "password_hash", "role", "archived", "archived_at", "updated_at", "created_at"}
 	userColumnsWithoutDefault = []string{"email", "password_hash", "archived_at"}
-	userColumnsWithDefault    = []string{"id", "archived", "updated_at", "created_at"}
+	userColumnsWithDefault    = []string{"id", "role", "archived", "updated_at", "created_at"}
 	userPrimaryKeyColumns     = []string{"id"}
 )
 

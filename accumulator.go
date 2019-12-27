@@ -80,11 +80,16 @@ func (e *ErrorResponse) JSON() string {
 }
 func withUser(auther *Auther, next SecureHandlerFunc) HandlerFunc {
 	fn := func(w http.ResponseWriter, r *http.Request) (interface{}, int, error) {
+		jwtString := ""
 		cookie, err := r.Cookie("jwt")
 		if err != nil {
-			return nil, http.StatusUnauthorized, err
+			jwtString = strings.TrimLeft(r.Header.Get("Authorization"), "Bearer ")
 		}
-		token, err := auther.TokenAuth.Decode(cookie.Value)
+		jwtString = cookie.Value
+		if jwtString == "" {
+			return nil, http.StatusUnauthorized, errors.New("no jwt provided in cookie or header")
+		}
+		token, err := auther.TokenAuth.Decode(jwtString)
 		if err != nil {
 			return nil, http.StatusUnauthorized, err
 		}
@@ -171,12 +176,12 @@ func RunServer(ctx context.Context, conn *sqlx.DB, serverAddr string, jwtsecret 
 	r.Route("/api", func(r chi.Router) {
 		// Authenticated routes
 		r.Group(func(r chi.Router) {
-			// r.Use(jwtauth.Verifier(tokenAuth))
-			// r.Use(jwtauth.Authenticator)
-
 			r.Post("/auth/sign_out", withError(c.signOutHandler))
 			r.Get("/auth/check", withError(c.checkHandler(auther)))
 			r.Post("/auth/set_password", withError(c.setPasswordHandler))
+
+			r.Get("/users/list", withError(withUser(auther, c.userListHandler())))
+			r.Post("/users/impersonate", withError(withUser(auther, c.userImpersonateHandler(auther))))
 
 			r.Get("/integrations/list", withError(withUser(auther, c.integrationsListHandler)))
 			r.Post("/integrations/add_username", withError(withUser(auther, c.integrationsAddUsernameHandler)))
@@ -417,7 +422,7 @@ func (c *API) signInHandler(auther *Auther) func(w http.ResponseWriter, r *http.
 		}
 
 		expiration := time.Now().Add(time.Duration(30) * time.Hour * 24)
-		jwt, err := auther.GenerateJWT(user.Email, strconv.Itoa(int(user.ID.Int64)), expiration)
+		jwt, err := auther.GenerateJWT(user.Email, strconv.Itoa(int(user.ID.Int64)), user.Role, expiration)
 		if err != nil {
 			return nil, http.StatusInternalServerError, err
 		}
@@ -614,4 +619,53 @@ func (c *API) teacherListHandler(w http.ResponseWriter, r *http.Request) (interf
 
 func (c *API) metricsHandler(w http.ResponseWriter, r *http.Request) (interface{}, int, error) {
 	return nil, 200, ErrNotImplemented
+}
+
+func (c *API) userListHandler() func(w http.ResponseWriter, r *http.Request, u *db.User) (interface{}, int, error) {
+	fn := func(w http.ResponseWriter, r *http.Request, u *db.User) (interface{}, int, error) {
+		if u.Role != roleAdmin {
+			return nil, http.StatusForbidden, errors.New("unauthorized")
+		}
+		type Response struct {
+			Data db.UserSlice `json:"data"`
+		}
+		users, err := db.Users().AllG()
+		if err != nil {
+			return nil, http.StatusBadRequest, err
+		}
+		return &Response{users}, 200, nil
+	}
+	return fn
+}
+func (c *API) userImpersonateHandler(auther *Auther) func(w http.ResponseWriter, r *http.Request, u *db.User) (interface{}, int, error) {
+	fn := func(w http.ResponseWriter, r *http.Request, u *db.User) (interface{}, int, error) {
+		if u.Role != roleAdmin {
+			return nil, http.StatusForbidden, errors.New("unauthorized")
+		}
+		type Request struct {
+			UserID int64 `json:"user_id"`
+		}
+		type Response struct {
+			Token string `json:"token"`
+		}
+		req := &Request{}
+		err := json.NewDecoder(r.Body).Decode(req)
+		if err != nil {
+			return nil, http.StatusBadRequest, err
+		}
+		dbUser, err := db.FindUserG(null.Int64From(req.UserID))
+		if err != nil {
+			return nil, http.StatusInternalServerError, err
+		}
+		expiration := time.Now().Add(time.Duration(30) * time.Hour * 24)
+		jwt, err := auther.GenerateJWT(dbUser.Email, strconv.Itoa(int(dbUser.ID.Int64)), dbUser.Role, expiration)
+		if err != nil {
+			return nil, http.StatusInternalServerError, err
+		}
+		cookie := http.Cookie{Name: "jwt", Value: jwt, Expires: expiration, HttpOnly: true, Path: "/", SameSite: http.SameSiteDefaultMode, Secure: false}
+		http.SetCookie(w, &cookie)
+
+		return &Response{jwt}, http.StatusOK, nil
+	}
+	return fn
 }

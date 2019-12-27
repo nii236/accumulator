@@ -22,19 +22,20 @@ import (
 
 // Friend is an object representing the database table.
 type Friend struct {
-	ID                            null.Int64 `boil:"id" json:"id,omitempty" toml:"id" yaml:"id,omitempty"`
-	IntegrationID                 int64      `boil:"integration_id" json:"integration_id" toml:"integration_id" yaml:"integration_id"`
-	IsTeacher                     bool       `boil:"is_teacher" json:"is_teacher" toml:"is_teacher" yaml:"is_teacher"`
-	VrchatID                      string     `boil:"vrchat_id" json:"vrchat_id" toml:"vrchat_id" yaml:"vrchat_id"`
-	VrchatUsername                string     `boil:"vrchat_username" json:"vrchat_username" toml:"vrchat_username" yaml:"vrchat_username"`
-	VrchatDisplayName             string     `boil:"vrchat_display_name" json:"vrchat_display_name" toml:"vrchat_display_name" yaml:"vrchat_display_name"`
-	VrchatAvatarImageURL          string     `boil:"vrchat_avatar_image_url" json:"vrchat_avatar_image_url" toml:"vrchat_avatar_image_url" yaml:"vrchat_avatar_image_url"`
-	VrchatAvatarThumbnailImageURL string     `boil:"vrchat_avatar_thumbnail_image_url" json:"vrchat_avatar_thumbnail_image_url" toml:"vrchat_avatar_thumbnail_image_url" yaml:"vrchat_avatar_thumbnail_image_url"`
-	VrchatLocation                string     `boil:"vrchat_location" json:"vrchat_location" toml:"vrchat_location" yaml:"vrchat_location"`
-	Archived                      bool       `boil:"archived" json:"archived" toml:"archived" yaml:"archived"`
-	ArchivedAt                    null.Time  `boil:"archived_at" json:"archived_at,omitempty" toml:"archived_at" yaml:"archived_at,omitempty"`
-	UpdatedAt                     time.Time  `boil:"updated_at" json:"updated_at" toml:"updated_at" yaml:"updated_at"`
-	CreatedAt                     time.Time  `boil:"created_at" json:"created_at" toml:"created_at" yaml:"created_at"`
+	ID                            null.Int64  `boil:"id" json:"id,omitempty" toml:"id" yaml:"id,omitempty"`
+	IntegrationID                 int64       `boil:"integration_id" json:"integration_id" toml:"integration_id" yaml:"integration_id"`
+	IsTeacher                     bool        `boil:"is_teacher" json:"is_teacher" toml:"is_teacher" yaml:"is_teacher"`
+	VrchatID                      string      `boil:"vrchat_id" json:"vrchat_id" toml:"vrchat_id" yaml:"vrchat_id"`
+	VrchatUsername                string      `boil:"vrchat_username" json:"vrchat_username" toml:"vrchat_username" yaml:"vrchat_username"`
+	VrchatDisplayName             string      `boil:"vrchat_display_name" json:"vrchat_display_name" toml:"vrchat_display_name" yaml:"vrchat_display_name"`
+	VrchatAvatarImageURL          string      `boil:"vrchat_avatar_image_url" json:"vrchat_avatar_image_url" toml:"vrchat_avatar_image_url" yaml:"vrchat_avatar_image_url"`
+	VrchatAvatarThumbnailImageURL string      `boil:"vrchat_avatar_thumbnail_image_url" json:"vrchat_avatar_thumbnail_image_url" toml:"vrchat_avatar_thumbnail_image_url" yaml:"vrchat_avatar_thumbnail_image_url"`
+	VrchatLocation                string      `boil:"vrchat_location" json:"vrchat_location" toml:"vrchat_location" yaml:"vrchat_location"`
+	AvatarBlobID                  null.String `boil:"avatar_blob_id" json:"avatar_blob_id,omitempty" toml:"avatar_blob_id" yaml:"avatar_blob_id,omitempty"`
+	Archived                      bool        `boil:"archived" json:"archived" toml:"archived" yaml:"archived"`
+	ArchivedAt                    null.Time   `boil:"archived_at" json:"archived_at,omitempty" toml:"archived_at" yaml:"archived_at,omitempty"`
+	UpdatedAt                     time.Time   `boil:"updated_at" json:"updated_at" toml:"updated_at" yaml:"updated_at"`
+	CreatedAt                     time.Time   `boil:"created_at" json:"created_at" toml:"created_at" yaml:"created_at"`
 
 	R *friendR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L friendL  `boil:"-" json:"-" toml:"-" yaml:"-"`
@@ -50,6 +51,7 @@ var FriendColumns = struct {
 	VrchatAvatarImageURL          string
 	VrchatAvatarThumbnailImageURL string
 	VrchatLocation                string
+	AvatarBlobID                  string
 	Archived                      string
 	ArchivedAt                    string
 	UpdatedAt                     string
@@ -64,6 +66,7 @@ var FriendColumns = struct {
 	VrchatAvatarImageURL:          "vrchat_avatar_image_url",
 	VrchatAvatarThumbnailImageURL: "vrchat_avatar_thumbnail_image_url",
 	VrchatLocation:                "vrchat_location",
+	AvatarBlobID:                  "avatar_blob_id",
 	Archived:                      "archived",
 	ArchivedAt:                    "archived_at",
 	UpdatedAt:                     "updated_at",
@@ -71,6 +74,29 @@ var FriendColumns = struct {
 }
 
 // Generated where
+
+type whereHelpernull_String struct{ field string }
+
+func (w whereHelpernull_String) EQ(x null.String) qm.QueryMod {
+	return qmhelper.WhereNullEQ(w.field, false, x)
+}
+func (w whereHelpernull_String) NEQ(x null.String) qm.QueryMod {
+	return qmhelper.WhereNullEQ(w.field, true, x)
+}
+func (w whereHelpernull_String) IsNull() qm.QueryMod    { return qmhelper.WhereIsNull(w.field) }
+func (w whereHelpernull_String) IsNotNull() qm.QueryMod { return qmhelper.WhereIsNotNull(w.field) }
+func (w whereHelpernull_String) LT(x null.String) qm.QueryMod {
+	return qmhelper.Where(w.field, qmhelper.LT, x)
+}
+func (w whereHelpernull_String) LTE(x null.String) qm.QueryMod {
+	return qmhelper.Where(w.field, qmhelper.LTE, x)
+}
+func (w whereHelpernull_String) GT(x null.String) qm.QueryMod {
+	return qmhelper.Where(w.field, qmhelper.GT, x)
+}
+func (w whereHelpernull_String) GTE(x null.String) qm.QueryMod {
+	return qmhelper.Where(w.field, qmhelper.GTE, x)
+}
 
 var FriendWhere = struct {
 	ID                            whereHelpernull_Int64
@@ -82,6 +108,7 @@ var FriendWhere = struct {
 	VrchatAvatarImageURL          whereHelperstring
 	VrchatAvatarThumbnailImageURL whereHelperstring
 	VrchatLocation                whereHelperstring
+	AvatarBlobID                  whereHelpernull_String
 	Archived                      whereHelperbool
 	ArchivedAt                    whereHelpernull_Time
 	UpdatedAt                     whereHelpertime_Time
@@ -96,6 +123,7 @@ var FriendWhere = struct {
 	VrchatAvatarImageURL:          whereHelperstring{field: "\"friends\".\"vrchat_avatar_image_url\""},
 	VrchatAvatarThumbnailImageURL: whereHelperstring{field: "\"friends\".\"vrchat_avatar_thumbnail_image_url\""},
 	VrchatLocation:                whereHelperstring{field: "\"friends\".\"vrchat_location\""},
+	AvatarBlobID:                  whereHelpernull_String{field: "\"friends\".\"avatar_blob_id\""},
 	Archived:                      whereHelperbool{field: "\"friends\".\"archived\""},
 	ArchivedAt:                    whereHelpernull_Time{field: "\"friends\".\"archived_at\""},
 	UpdatedAt:                     whereHelpertime_Time{field: "\"friends\".\"updated_at\""},
@@ -129,8 +157,8 @@ func (*friendR) NewStruct() *friendR {
 type friendL struct{}
 
 var (
-	friendAllColumns            = []string{"id", "integration_id", "is_teacher", "vrchat_id", "vrchat_username", "vrchat_display_name", "vrchat_avatar_image_url", "vrchat_avatar_thumbnail_image_url", "vrchat_location", "archived", "archived_at", "updated_at", "created_at"}
-	friendColumnsWithoutDefault = []string{"integration_id", "vrchat_id", "vrchat_username", "vrchat_display_name", "vrchat_avatar_image_url", "vrchat_avatar_thumbnail_image_url", "vrchat_location", "archived_at"}
+	friendAllColumns            = []string{"id", "integration_id", "is_teacher", "vrchat_id", "vrchat_username", "vrchat_display_name", "vrchat_avatar_image_url", "vrchat_avatar_thumbnail_image_url", "vrchat_location", "avatar_blob_id", "archived", "archived_at", "updated_at", "created_at"}
+	friendColumnsWithoutDefault = []string{"integration_id", "vrchat_id", "vrchat_username", "vrchat_display_name", "vrchat_avatar_image_url", "vrchat_avatar_thumbnail_image_url", "vrchat_location", "avatar_blob_id", "archived_at"}
 	friendColumnsWithDefault    = []string{"id", "is_teacher", "archived", "updated_at", "created_at"}
 	friendPrimaryKeyColumns     = []string{"id"}
 )

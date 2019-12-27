@@ -2,7 +2,7 @@ CREATE TABLE users (
     id INTEGER PRIMARY KEY,
     email VARCHAR NOT NULL,
     password_hash VARCHAR NOT NULL,
-    
+    role VARCHAR NOT NULL DEFAULT "user",
     archived BOOLEAN NOT NULL DEFAULT 0,
     archived_at DATETIME,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,

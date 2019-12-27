@@ -3,8 +3,10 @@ import { Spinner } from "baseui/spinner"
 import { Error } from "../types/api"
 import { RouteComponentProps } from "react-router-dom"
 import { friend } from "./Friends"
+import { Unstable_StyledTable as Table, Unstable_StyledHeadCell as HeadCell, Unstable_StyledBodyCell as BodyCell } from "baseui/table-grid"
 import { faMonument } from "@fortawesome/free-solid-svg-icons"
 import * as moment from "moment"
+import { useStyletron } from "baseui"
 
 interface attendanceRecord {
 	location: string
@@ -19,12 +21,14 @@ export const Attendance = (props: Props) => {
 	const [err, setErr] = React.useState<string | null>(null)
 	const [thinking, setThinking] = React.useState<boolean>(false)
 	const [friends, setFriends] = React.useState<friend[] | null>(null)
+	// const [css, theme] = useStyletron()
 	React.useEffect(() => {
 		fetchAttendance()
 	}, [])
 	React.useEffect(() => {
 		fetchFriends()
 	}, [])
+
 	const fetchFriends = async () => {
 		setThinking(true)
 		try {
@@ -59,6 +63,7 @@ export const Attendance = (props: Props) => {
 		}
 		setThinking(false)
 	}
+
 	if (thinking) {
 		return <Spinner overrides={{ Svg: { style: { marginTop: "10rem", display: "block", marginLeft: "auto", marginRight: "auto" } } }} />
 	}
@@ -82,39 +87,41 @@ export const Attendance = (props: Props) => {
 				if (thisFriend) {
 					name = thisFriend.vrchat_display_name
 				}
+				//css({ height: "750px" })
 				return (
-					<div key={i}>
+					<div>
 						<h2>Student: {name}</h2>
-						{arr
-							.sort((a, b) => {
-								if (a.timestamp === b.timestamp) {
+						<Table $gridTemplateColumns="minmax(400px, max-content) 200px 200px">
+							<HeadCell>Column 1</HeadCell>
+							<HeadCell>Column 2</HeadCell>
+							{arr
+								.sort((a, b) => {
+									if (a.timestamp === b.timestamp) {
+										return 0
+									}
+									if (a.timestamp > b.timestamp) {
+										return -1
+									}
+									if (a.timestamp < b.timestamp) {
+										return 1
+									}
 									return 0
-								}
-								if (a.timestamp > b.timestamp) {
-									return -1
-								}
-								if (a.timestamp < b.timestamp) {
-									return 1
-								}
-								return 0
-							})
-							.map((el, j) => {
-								if (el.teacher_id !== teacher.id) {
-									return
-								}
-								if (el.integration_id.toString() !== props.match.params.integration_id) {
-									return
-								}
-								return (
-									<div key={`${i}-${j}`}>
-										<ul>
-											<li>
-												{moment.unix(el.timestamp).toISOString()} - {el.location}
-											</li>
-										</ul>
-									</div>
-								)
-							})}
+								})
+								.map((el, j) => {
+									if (el.teacher_id !== teacher.id) {
+										return
+									}
+									if (el.integration_id.toString() !== props.match.params.integration_id) {
+										return
+									}
+									return (
+										<React.Fragment key={`${i}-${j}`}>
+											<BodyCell>{moment.unix(el.timestamp).format("YYYY.MM.DD HH:mm")}</BodyCell>
+											<BodyCell>{el.location}</BodyCell>
+										</React.Fragment>
+									)
+								})}
+						</Table>
 					</div>
 				)
 			})}

@@ -66,8 +66,8 @@ func HashPassword(password string) string {
 }
 
 // GenerateJWT returns the token for client side persistence
-func (a *Auther) GenerateJWT(email, id string, expiration time.Time) (string, error) {
-	_, tokenString, err := a.TokenAuth.Encode(jwt.MapClaims{"email": email, "id": id})
+func (a *Auther) GenerateJWT(email, id, role string, expiration time.Time) (string, error) {
+	_, tokenString, err := a.TokenAuth.Encode(jwt.MapClaims{"email": email, "id": id, "role": role})
 	if err != nil {
 		return "", err
 	}

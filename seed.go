@@ -12,9 +12,17 @@ import (
 )
 
 func Seed() error {
+	u := userFactory()
+	u.Email = "jtnguyen236@gmail.com"
+	u.PasswordHash = HashPassword("password")
+	u.Role = roleAdmin
+	err := u.InsertG(boil.Infer())
+	if err != nil && !strings.Contains(err.Error(), ErrUnableToPopulate) {
+		return err
+	}
 	for i := 0; i < 2; i++ {
 		u := userFactory()
-		err := u.InsertG(boil.Infer())
+		err = u.InsertG(boil.Infer())
 		if err != nil && !strings.Contains(err.Error(), ErrUnableToPopulate) {
 			return err
 		}

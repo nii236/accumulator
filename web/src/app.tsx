@@ -16,7 +16,6 @@ import { Spinner } from "baseui/spinner"
 import { UI, useUI } from "./controllers/ui"
 import { H1 } from "baseui/typography"
 
-const engine = new Styletron()
 interface Props extends RouteComponentProps {}
 const Home = (props: Props) => {
 	return (
@@ -84,7 +83,7 @@ const Routes = () => {
 		</div>
 	)
 }
-
+const engine = new Styletron()
 const App = () => {
 	const [darkTheme, setDarkTheme] = React.useState<boolean>(false)
 	return (
