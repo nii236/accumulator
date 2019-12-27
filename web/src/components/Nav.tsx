@@ -19,6 +19,7 @@ interface Props {
 }
 export const ChangePasswordForm = () => {
 	const [err, setErr] = React.useState<string | null>(null)
+	const [success, setSuccess] = React.useState(false)
 	const [thinking, setThinking] = React.useState(false)
 	const { register, setValue, handleSubmit, errors, setError } = useForm<{
 		email: string
@@ -44,7 +45,7 @@ export const ChangePasswordForm = () => {
 		try {
 			const success = await setPassword({ password })
 			if (success) {
-				window.location.reload()
+				setSuccess(success)
 			}
 		} catch (error) {
 			setErr(error)
@@ -58,14 +59,29 @@ export const ChangePasswordForm = () => {
 					{err}
 				</Notification>
 			)}
-			<Input startEnhancer={<FontAwesomeIcon icon={faKey} />} name="password" type="password" placeholder="password" inputRef={register({ required: true })} />
-			<Button
-				type="submit"
-				overrides={{
-					BaseButton: { style: { width: "100%", marginTop: "10px" } },
-				}}>
-				Save
-			</Button>
+			{success && (
+				<Notification overrides={{ Body: { style: { marginLeft: "auto", marginRight: "auto" } } }} kind={KIND.positive}>
+					Your password has successfully been changed.
+				</Notification>
+			)}
+			{!success && (
+				<Input
+					startEnhancer={<FontAwesomeIcon icon={faKey} />}
+					name="password"
+					type="password"
+					placeholder="password"
+					inputRef={register({ required: true })}
+				/>
+			)}
+			{!success && (
+				<Button
+					type="submit"
+					overrides={{
+						BaseButton: { style: { width: "100%", marginTop: "10px" } },
+					}}>
+					Save
+				</Button>
+			)}
 		</form>
 	)
 }
