@@ -26,7 +26,11 @@ func RunAttendanceTracker(ctx context.Context, stepMinutes int, log *zap.Sugared
 			fmt.Println("invalid integration ID, this should never happen")
 			continue
 		}
-		trackAttendance(integration.ID.Int64, integration.AuthToken, integration.APIKey, log)
+		err := trackAttendance(integration.ID.Int64, integration.AuthToken, integration.APIKey, log)
+		if err != nil {
+			log.Errorw(err.Error(), "integration_id", integration.ID.Int64, "integration_username", integration.Username)
+			continue
+		}
 	}
 	t := time.NewTicker(time.Duration(stepMinutes) * time.Minute)
 	for {
@@ -38,7 +42,11 @@ func RunAttendanceTracker(ctx context.Context, stepMinutes int, log *zap.Sugared
 					fmt.Println("invalid integration ID, this should never happen")
 					continue
 				}
-				trackAttendance(integration.ID.Int64, integration.AuthToken, integration.APIKey, log)
+				err := trackAttendance(integration.ID.Int64, integration.AuthToken, integration.APIKey, log)
+				if err != nil {
+					log.Errorw(err.Error(), "integration_id", integration.ID.Int64)
+					continue
+				}
 			}
 		}
 	}
@@ -46,6 +54,10 @@ func RunAttendanceTracker(ctx context.Context, stepMinutes int, log *zap.Sugared
 
 // trackAttendance in the database
 func trackAttendance(integrationID int64, authToken, apiKey string, log *zap.SugaredLogger) error {
+	err := refreshFriendCache(int(integrationID))
+	if err != nil {
+		return err
+	}
 	vrcClient, err := vrc.NewClient(vrc.ReleaseAPIURL, authToken, apiKey)
 	if err != nil {
 		return err
