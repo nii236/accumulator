@@ -24,6 +24,7 @@ const AddVRChatUsername = (props: AddProps) => {
 		password: string
 	}>()
 	const [err, setErr] = React.useState<string | null>(null)
+
 	const submit = async (username: string, password: string) => {
 		props.setThinking(true)
 		try {
@@ -91,7 +92,24 @@ export const Integrations = (props: Props) => {
 	React.useEffect(() => {
 		fetchIntegrations()
 	}, [])
+	const updateFriends = async (integration_id: number) => {
+		setThinking(true)
+		try {
+			const res = await fetch(`/api/integrations/${integration_id}/update_friends`, { method: "POST" })
+			if (!res.ok) {
+				const err: Error = await res.json()
+				throw new Error(err.message)
+			}
 
+			const data: { data: integration[] } = await res.json()
+			console.log(data)
+			fetchIntegrations()
+		} catch (err) {
+			console.error(err)
+			setErr(err.toString())
+		}
+		setThinking(false)
+	}
 	const fetchIntegrations = async () => {
 		setThinking(true)
 		try {
@@ -175,11 +193,11 @@ export const Integrations = (props: Props) => {
 							</StyledAction>
 							<StyledAction>
 								<Button
-									onClick={() => setRedirect(`/integrations/${integration.id}/attendance`)}
+									onClick={() => updateFriends(integration.id)}
 									overrides={{
 										BaseButton: { style: { width: "100%" } },
 									}}>
-									Attendance
+									Update Friends
 								</Button>
 							</StyledAction>
 						</Card>

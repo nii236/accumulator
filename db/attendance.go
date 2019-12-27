@@ -140,7 +140,7 @@ var (
 	attendanceAllColumns            = []string{"timestamp", "integration_id", "friend_id", "teacher_id", "location"}
 	attendanceColumnsWithoutDefault = []string{"timestamp", "integration_id", "friend_id", "teacher_id", "location"}
 	attendanceColumnsWithDefault    = []string{}
-	attendancePrimaryKeyColumns     = []string{"timestamp", "friend_id"}
+	attendancePrimaryKeyColumns     = []string{"timestamp", "integration_id", "friend_id"}
 )
 
 type (
@@ -739,7 +739,7 @@ func (attendanceL) LoadIntegration(e boil.Executor, singular bool, maybeAttendan
 		if foreign.R == nil {
 			foreign.R = &integrationR{}
 		}
-		foreign.R.Attendances = append(foreign.R.Attendances, object)
+		foreign.R.Attendance = object
 		return nil
 	}
 
@@ -750,7 +750,7 @@ func (attendanceL) LoadIntegration(e boil.Executor, singular bool, maybeAttendan
 				if foreign.R == nil {
 					foreign.R = &integrationR{}
 				}
-				foreign.R.Attendances = append(foreign.R.Attendances, local)
+				foreign.R.Attendance = local
 				break
 			}
 		}
@@ -783,7 +783,7 @@ func (o *Attendance) SetTeacher(exec boil.Executor, insert bool, related *Friend
 		strmangle.SetParamNames("\"", "\"", 0, []string{"teacher_id"}),
 		strmangle.WhereClause("\"", "\"", 0, attendancePrimaryKeyColumns),
 	)
-	values := []interface{}{related.ID, o.Timestamp, o.FriendID}
+	values := []interface{}{related.ID, o.Timestamp, o.IntegrationID, o.FriendID}
 
 	if boil.DebugMode {
 		fmt.Fprintln(boil.DebugWriter, updateQuery)
@@ -877,7 +877,7 @@ func (o *Attendance) SetFriend(exec boil.Executor, insert bool, related *Friend)
 		strmangle.SetParamNames("\"", "\"", 0, []string{"friend_id"}),
 		strmangle.WhereClause("\"", "\"", 0, attendancePrimaryKeyColumns),
 	)
-	values := []interface{}{related.ID, o.Timestamp, o.FriendID}
+	values := []interface{}{related.ID, o.Timestamp, o.IntegrationID, o.FriendID}
 
 	if boil.DebugMode {
 		fmt.Fprintln(boil.DebugWriter, updateQuery)
@@ -938,7 +938,7 @@ func (o *Attendance) RemoveFriend(exec boil.Executor, related *Friend) error {
 
 // SetIntegrationG of the attendance to the related item.
 // Sets o.R.Integration to related.
-// Adds o to related.R.Attendances.
+// Adds o to related.R.Attendance.
 // Uses the global database handle.
 func (o *Attendance) SetIntegrationG(insert bool, related *Integration) error {
 	return o.SetIntegration(boil.GetDB(), insert, related)
@@ -946,7 +946,7 @@ func (o *Attendance) SetIntegrationG(insert bool, related *Integration) error {
 
 // SetIntegration of the attendance to the related item.
 // Sets o.R.Integration to related.
-// Adds o to related.R.Attendances.
+// Adds o to related.R.Attendance.
 func (o *Attendance) SetIntegration(exec boil.Executor, insert bool, related *Integration) error {
 	var err error
 	if insert {
@@ -960,7 +960,7 @@ func (o *Attendance) SetIntegration(exec boil.Executor, insert bool, related *In
 		strmangle.SetParamNames("\"", "\"", 0, []string{"integration_id"}),
 		strmangle.WhereClause("\"", "\"", 0, attendancePrimaryKeyColumns),
 	)
-	values := []interface{}{related.ID, o.Timestamp, o.FriendID}
+	values := []interface{}{related.ID, o.Timestamp, o.IntegrationID, o.FriendID}
 
 	if boil.DebugMode {
 		fmt.Fprintln(boil.DebugWriter, updateQuery)
@@ -982,10 +982,10 @@ func (o *Attendance) SetIntegration(exec boil.Executor, insert bool, related *In
 
 	if related.R == nil {
 		related.R = &integrationR{
-			Attendances: AttendanceSlice{o},
+			Attendance: o,
 		}
 	} else {
-		related.R.Attendances = append(related.R.Attendances, o)
+		related.R.Attendance = o
 	}
 
 	return nil
@@ -1015,18 +1015,7 @@ func (o *Attendance) RemoveIntegration(exec boil.Executor, related *Integration)
 		return nil
 	}
 
-	for i, ri := range related.R.Attendances {
-		if queries.Equal(o.IntegrationID, ri.IntegrationID) {
-			continue
-		}
-
-		ln := len(related.R.Attendances)
-		if ln > 1 && i < ln-1 {
-			related.R.Attendances[i] = related.R.Attendances[ln-1]
-		}
-		related.R.Attendances = related.R.Attendances[:ln-1]
-		break
-	}
+	related.R.Attendance = nil
 	return nil
 }
 
@@ -1037,13 +1026,13 @@ func Attendances(mods ...qm.QueryMod) attendanceQuery {
 }
 
 // FindAttendanceG retrieves a single record by ID.
-func FindAttendanceG(timestamp int64, friendID null.Int64, selectCols ...string) (*Attendance, error) {
-	return FindAttendance(boil.GetDB(), timestamp, friendID, selectCols...)
+func FindAttendanceG(timestamp int64, integrationID null.Int64, friendID null.Int64, selectCols ...string) (*Attendance, error) {
+	return FindAttendance(boil.GetDB(), timestamp, integrationID, friendID, selectCols...)
 }
 
 // FindAttendance retrieves a single record by ID with an executor.
 // If selectCols is empty Find will return all columns.
-func FindAttendance(exec boil.Executor, timestamp int64, friendID null.Int64, selectCols ...string) (*Attendance, error) {
+func FindAttendance(exec boil.Executor, timestamp int64, integrationID null.Int64, friendID null.Int64, selectCols ...string) (*Attendance, error) {
 	attendanceObj := &Attendance{}
 
 	sel := "*"
@@ -1051,10 +1040,10 @@ func FindAttendance(exec boil.Executor, timestamp int64, friendID null.Int64, se
 		sel = strings.Join(strmangle.IdentQuoteSlice(dialect.LQ, dialect.RQ, selectCols), ",")
 	}
 	query := fmt.Sprintf(
-		"select %s from \"attendance\" where \"timestamp\"=? AND \"friend_id\"=?", sel,
+		"select %s from \"attendance\" where \"timestamp\"=? AND \"integration_id\"=? AND \"friend_id\"=?", sel,
 	)
 
-	q := queries.Raw(query, timestamp, friendID)
+	q := queries.Raw(query, timestamp, integrationID, friendID)
 
 	err := q.Bind(nil, exec, attendanceObj)
 	if err != nil {
@@ -1145,6 +1134,7 @@ func (o *Attendance) Insert(exec boil.Executor, columns boil.Columns) error {
 
 	identifierCols = []interface{}{
 		o.Timestamp,
+		o.IntegrationID,
 		o.FriendID,
 	}
 
@@ -1330,7 +1320,7 @@ func (o *Attendance) Delete(exec boil.Executor) (int64, error) {
 	}
 
 	args := queries.ValuesFromMapping(reflect.Indirect(reflect.ValueOf(o)), attendancePrimaryKeyMapping)
-	sql := "DELETE FROM \"attendance\" WHERE \"timestamp\"=? AND \"friend_id\"=?"
+	sql := "DELETE FROM \"attendance\" WHERE \"timestamp\"=? AND \"integration_id\"=? AND \"friend_id\"=?"
 
 	if boil.DebugMode {
 		fmt.Fprintln(boil.DebugWriter, sql)
@@ -1441,7 +1431,7 @@ func (o *Attendance) ReloadG() error {
 // Reload refetches the object from the database
 // using the primary keys with an executor.
 func (o *Attendance) Reload(exec boil.Executor) error {
-	ret, err := FindAttendance(exec, o.Timestamp, o.FriendID)
+	ret, err := FindAttendance(exec, o.Timestamp, o.IntegrationID, o.FriendID)
 	if err != nil {
 		return err
 	}
@@ -1490,21 +1480,21 @@ func (o *AttendanceSlice) ReloadAll(exec boil.Executor) error {
 }
 
 // AttendanceExistsG checks if the Attendance row exists.
-func AttendanceExistsG(timestamp int64, friendID null.Int64) (bool, error) {
-	return AttendanceExists(boil.GetDB(), timestamp, friendID)
+func AttendanceExistsG(timestamp int64, integrationID null.Int64, friendID null.Int64) (bool, error) {
+	return AttendanceExists(boil.GetDB(), timestamp, integrationID, friendID)
 }
 
 // AttendanceExists checks if the Attendance row exists.
-func AttendanceExists(exec boil.Executor, timestamp int64, friendID null.Int64) (bool, error) {
+func AttendanceExists(exec boil.Executor, timestamp int64, integrationID null.Int64, friendID null.Int64) (bool, error) {
 	var exists bool
-	sql := "select exists(select 1 from \"attendance\" where \"timestamp\"=? AND \"friend_id\"=? limit 1)"
+	sql := "select exists(select 1 from \"attendance\" where \"timestamp\"=? AND \"integration_id\"=? AND \"friend_id\"=? limit 1)"
 
 	if boil.DebugMode {
 		fmt.Fprintln(boil.DebugWriter, sql)
-		fmt.Fprintln(boil.DebugWriter, timestamp, friendID)
+		fmt.Fprintln(boil.DebugWriter, timestamp, integrationID, friendID)
 	}
 
-	row := exec.QueryRow(sql, timestamp, friendID)
+	row := exec.QueryRow(sql, timestamp, integrationID, friendID)
 
 	err := row.Scan(&exists)
 	if err != nil {

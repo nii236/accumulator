@@ -3,14 +3,14 @@ import { FriendsListURL } from "../constants/api"
 import { Spinner } from "baseui/spinner"
 import { Error } from "../types/api"
 import { Notification, KIND } from "baseui/notification"
-import { RouteComponentProps } from "react-router-dom"
+import { RouteComponentProps, Redirect } from "react-router-dom"
 import { Card, StyledBody, StyledAction } from "baseui/card"
 import { Button } from "baseui/button"
 import { FlexGrid, FlexGridItem } from "baseui/flex-grid"
 import { BlockProps } from "baseui/block"
 import { Root } from "baseui/toast"
-interface friend {
-	id: string
+export interface friend {
+	id: number
 	is_teacher: boolean
 	vrchat_id: string
 	vrchat_username: string
@@ -24,6 +24,7 @@ export const Friends = (props: Props) => {
 	const [friends, setFriends] = React.useState<friend[] | null>(null)
 	const [err, setErr] = React.useState<string | null>(null)
 	const [thinking, setThinking] = React.useState<boolean>(false)
+	const [redirect, setRedirect] = React.useState<string | null>(null)
 	React.useEffect(() => {
 		fetchFriends()
 	}, [])
@@ -79,7 +80,9 @@ export const Friends = (props: Props) => {
 	if (thinking) {
 		return <Spinner overrides={{ Svg: { style: { marginTop: "10rem", display: "block", marginLeft: "auto", marginRight: "auto" } } }} />
 	}
-
+	if (redirect) {
+		return <Redirect to={redirect} push />
+	}
 	if (!friends) return <p>No data</p>
 	return (
 		<div>
@@ -104,18 +107,28 @@ export const Friends = (props: Props) => {
 									</StyledBody>
 									<StyledAction>
 										{friend.is_teacher && (
-											<Button
-												onClick={async () => {
-													setThinking(true)
-													await demoteToStudent(friend.vrchat_id)
-													await fetchFriends()
-													setThinking(false)
-												}}
-												overrides={{
-													BaseButton: { style: { width: "100%" } },
-												}}>
-												Set as student
-											</Button>
+											<>
+												<Button
+													onClick={async () => {
+														setThinking(true)
+														await demoteToStudent(friend.vrchat_id)
+														await fetchFriends()
+														setThinking(false)
+													}}
+													overrides={{
+														BaseButton: { style: { width: "100%" } },
+													}}>
+													Set as student
+												</Button>
+
+												<Button
+													onClick={() => setRedirect(`/integrations/${props.match.params.integration_id}/attendance/${friend.id}`)}
+													overrides={{
+														BaseButton: { style: { width: "100%" } },
+													}}>
+													View attendances
+												</Button>
+											</>
 										)}
 										{!friend.is_teacher && (
 											<Button

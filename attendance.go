@@ -26,7 +26,7 @@ func RunAttendanceTracker(ctx context.Context, stepMinutes int, log *zap.Sugared
 			fmt.Println("invalid integration ID, this should never happen")
 			continue
 		}
-		trackAttendance(integration.ID.Int64, integration.AuthToken, integration.APIKey)
+		trackAttendance(integration.ID.Int64, integration.AuthToken, integration.APIKey, log)
 	}
 	t := time.NewTicker(time.Duration(stepMinutes) * time.Minute)
 	for {
@@ -38,14 +38,14 @@ func RunAttendanceTracker(ctx context.Context, stepMinutes int, log *zap.Sugared
 					fmt.Println("invalid integration ID, this should never happen")
 					continue
 				}
-				trackAttendance(integration.ID.Int64, integration.AuthToken, integration.APIKey)
+				trackAttendance(integration.ID.Int64, integration.AuthToken, integration.APIKey, log)
 			}
 		}
 	}
 }
 
 // trackAttendance in the database
-func trackAttendance(integrationID int64, authToken, apiKey string) error {
+func trackAttendance(integrationID int64, authToken, apiKey string, log *zap.SugaredLogger) error {
 	vrcClient, err := vrc.NewClient(vrc.ReleaseAPIURL, authToken, apiKey)
 	if err != nil {
 		return err
@@ -73,8 +73,8 @@ func trackAttendance(integrationID int64, authToken, apiKey string) error {
 				currentLocation = vrcfriend.Location
 			}
 		}
-		if currentLocation := "" || currentLocation := "offline" {
-			log.Errorw("could not get teacher location", "vrc_id", vrcfriend.ID)
+		if currentLocation == "" || currentLocation == "offline" {
+			log.Errorw("could not get teacher location", "vrc_id", teacher.VrchatID, "display_name", teacher.VrchatDisplayName)
 			continue
 		}
 		for _, vrcfriend := range vrcfriends {
@@ -87,7 +87,7 @@ func trackAttendance(integrationID int64, authToken, apiKey string) error {
 				}
 				if vrcfriend.Location == currentLocation {
 					record := &db.Attendance{
-						Timestamp:     time.Now().UnixNano(),
+						Timestamp:     time.Now().Unix(),
 						IntegrationID: null.Int64From(integrationID),
 						FriendID:      student.ID,
 						TeacherID:     teacher.ID,

@@ -23,6 +23,7 @@ import (
 // Integration is an object representing the database table.
 type Integration struct {
 	ID        null.Int64 `boil:"id" json:"id,omitempty" toml:"id" yaml:"id,omitempty"`
+	UserID    int64      `boil:"user_id" json:"user_id" toml:"user_id" yaml:"user_id"`
 	Username  string     `boil:"username" json:"username" toml:"username" yaml:"username"`
 	APIKey    string     `boil:"api_key" json:"api_key" toml:"api_key" yaml:"api_key"`
 	AuthToken string     `boil:"auth_token" json:"auth_token" toml:"auth_token" yaml:"auth_token"`
@@ -33,11 +34,13 @@ type Integration struct {
 
 var IntegrationColumns = struct {
 	ID        string
+	UserID    string
 	Username  string
 	APIKey    string
 	AuthToken string
 }{
 	ID:        "id",
+	UserID:    "user_id",
 	Username:  "username",
 	APIKey:    "api_key",
 	AuthToken: "auth_token",
@@ -47,11 +50,13 @@ var IntegrationColumns = struct {
 
 var IntegrationWhere = struct {
 	ID        whereHelpernull_Int64
+	UserID    whereHelperint64
 	Username  whereHelperstring
 	APIKey    whereHelperstring
 	AuthToken whereHelperstring
 }{
 	ID:        whereHelpernull_Int64{field: "\"integrations\".\"id\""},
+	UserID:    whereHelperint64{field: "\"integrations\".\"user_id\""},
 	Username:  whereHelperstring{field: "\"integrations\".\"username\""},
 	APIKey:    whereHelperstring{field: "\"integrations\".\"api_key\""},
 	AuthToken: whereHelperstring{field: "\"integrations\".\"auth_token\""},
@@ -59,17 +64,20 @@ var IntegrationWhere = struct {
 
 // IntegrationRels is where relationship names are stored.
 var IntegrationRels = struct {
-	Friend      string
-	Attendances string
+	User       string
+	Attendance string
+	Friend     string
 }{
-	Friend:      "Friend",
-	Attendances: "Attendances",
+	User:       "User",
+	Attendance: "Attendance",
+	Friend:     "Friend",
 }
 
 // integrationR is where relationships are stored.
 type integrationR struct {
-	Friend      *Friend
-	Attendances AttendanceSlice
+	User       *User
+	Attendance *Attendance
+	Friend     *Friend
 }
 
 // NewStruct creates a new relationship struct
@@ -81,8 +89,8 @@ func (*integrationR) NewStruct() *integrationR {
 type integrationL struct{}
 
 var (
-	integrationAllColumns            = []string{"id", "username", "api_key", "auth_token"}
-	integrationColumnsWithoutDefault = []string{"username", "api_key", "auth_token"}
+	integrationAllColumns            = []string{"id", "user_id", "username", "api_key", "auth_token"}
+	integrationColumnsWithoutDefault = []string{"user_id", "username", "api_key", "auth_token"}
 	integrationColumnsWithDefault    = []string{"id"}
 	integrationPrimaryKeyColumns     = []string{"id"}
 )
@@ -346,6 +354,34 @@ func (q integrationQuery) Exists(exec boil.Executor) (bool, error) {
 	return count > 0, nil
 }
 
+// User pointed to by the foreign key.
+func (o *Integration) User(mods ...qm.QueryMod) userQuery {
+	queryMods := []qm.QueryMod{
+		qm.Where("\"id\" = ?", o.UserID),
+	}
+
+	queryMods = append(queryMods, mods...)
+
+	query := Users(queryMods...)
+	queries.SetFrom(query.Query, "\"users\"")
+
+	return query
+}
+
+// Attendance pointed to by the foreign key.
+func (o *Integration) Attendance(mods ...qm.QueryMod) attendanceQuery {
+	queryMods := []qm.QueryMod{
+		qm.Where("\"integration_id\" = ?", o.ID),
+	}
+
+	queryMods = append(queryMods, mods...)
+
+	query := Attendances(queryMods...)
+	queries.SetFrom(query.Query, "\"attendance\"")
+
+	return query
+}
+
 // Friend pointed to by the foreign key.
 func (o *Integration) Friend(mods ...qm.QueryMod) friendQuery {
 	queryMods := []qm.QueryMod{
@@ -360,25 +396,207 @@ func (o *Integration) Friend(mods ...qm.QueryMod) friendQuery {
 	return query
 }
 
-// Attendances retrieves all the attendance's Attendances with an executor.
-func (o *Integration) Attendances(mods ...qm.QueryMod) attendanceQuery {
-	var queryMods []qm.QueryMod
-	if len(mods) != 0 {
-		queryMods = append(queryMods, mods...)
+// LoadUser allows an eager lookup of values, cached into the
+// loaded structs of the objects. This is for an N-1 relationship.
+func (integrationL) LoadUser(e boil.Executor, singular bool, maybeIntegration interface{}, mods queries.Applicator) error {
+	var slice []*Integration
+	var object *Integration
+
+	if singular {
+		object = maybeIntegration.(*Integration)
+	} else {
+		slice = *maybeIntegration.(*[]*Integration)
 	}
 
-	queryMods = append(queryMods,
-		qm.Where("\"attendance\".\"integration_id\"=?", o.ID),
-	)
+	args := make([]interface{}, 0, 1)
+	if singular {
+		if object.R == nil {
+			object.R = &integrationR{}
+		}
+		if !queries.IsNil(object.UserID) {
+			args = append(args, object.UserID)
+		}
 
-	query := Attendances(queryMods...)
-	queries.SetFrom(query.Query, "\"attendance\"")
+	} else {
+	Outer:
+		for _, obj := range slice {
+			if obj.R == nil {
+				obj.R = &integrationR{}
+			}
 
-	if len(queries.GetSelect(query.Query)) == 0 {
-		queries.SetSelect(query.Query, []string{"\"attendance\".*"})
+			for _, a := range args {
+				if queries.Equal(a, obj.UserID) {
+					continue Outer
+				}
+			}
+
+			if !queries.IsNil(obj.UserID) {
+				args = append(args, obj.UserID)
+			}
+
+		}
 	}
 
-	return query
+	if len(args) == 0 {
+		return nil
+	}
+
+	query := NewQuery(qm.From(`users`), qm.WhereIn(`users.id in ?`, args...))
+	if mods != nil {
+		mods.Apply(query)
+	}
+
+	results, err := query.Query(e)
+	if err != nil {
+		return errors.Wrap(err, "failed to eager load User")
+	}
+
+	var resultSlice []*User
+	if err = queries.Bind(results, &resultSlice); err != nil {
+		return errors.Wrap(err, "failed to bind eager loaded slice User")
+	}
+
+	if err = results.Close(); err != nil {
+		return errors.Wrap(err, "failed to close results of eager load for users")
+	}
+	if err = results.Err(); err != nil {
+		return errors.Wrap(err, "error occurred during iteration of eager loaded relations for users")
+	}
+
+	if len(integrationAfterSelectHooks) != 0 {
+		for _, obj := range resultSlice {
+			if err := obj.doAfterSelectHooks(e); err != nil {
+				return err
+			}
+		}
+	}
+
+	if len(resultSlice) == 0 {
+		return nil
+	}
+
+	if singular {
+		foreign := resultSlice[0]
+		object.R.User = foreign
+		if foreign.R == nil {
+			foreign.R = &userR{}
+		}
+		foreign.R.Integrations = append(foreign.R.Integrations, object)
+		return nil
+	}
+
+	for _, local := range slice {
+		for _, foreign := range resultSlice {
+			if queries.Equal(local.UserID, foreign.ID) {
+				local.R.User = foreign
+				if foreign.R == nil {
+					foreign.R = &userR{}
+				}
+				foreign.R.Integrations = append(foreign.R.Integrations, local)
+				break
+			}
+		}
+	}
+
+	return nil
+}
+
+// LoadAttendance allows an eager lookup of values, cached into the
+// loaded structs of the objects. This is for a 1-1 relationship.
+func (integrationL) LoadAttendance(e boil.Executor, singular bool, maybeIntegration interface{}, mods queries.Applicator) error {
+	var slice []*Integration
+	var object *Integration
+
+	if singular {
+		object = maybeIntegration.(*Integration)
+	} else {
+		slice = *maybeIntegration.(*[]*Integration)
+	}
+
+	args := make([]interface{}, 0, 1)
+	if singular {
+		if object.R == nil {
+			object.R = &integrationR{}
+		}
+		args = append(args, object.ID)
+	} else {
+	Outer:
+		for _, obj := range slice {
+			if obj.R == nil {
+				obj.R = &integrationR{}
+			}
+
+			for _, a := range args {
+				if queries.Equal(a, obj.ID) {
+					continue Outer
+				}
+			}
+
+			args = append(args, obj.ID)
+		}
+	}
+
+	if len(args) == 0 {
+		return nil
+	}
+
+	query := NewQuery(qm.From(`attendance`), qm.WhereIn(`attendance.integration_id in ?`, args...))
+	if mods != nil {
+		mods.Apply(query)
+	}
+
+	results, err := query.Query(e)
+	if err != nil {
+		return errors.Wrap(err, "failed to eager load Attendance")
+	}
+
+	var resultSlice []*Attendance
+	if err = queries.Bind(results, &resultSlice); err != nil {
+		return errors.Wrap(err, "failed to bind eager loaded slice Attendance")
+	}
+
+	if err = results.Close(); err != nil {
+		return errors.Wrap(err, "failed to close results of eager load for attendance")
+	}
+	if err = results.Err(); err != nil {
+		return errors.Wrap(err, "error occurred during iteration of eager loaded relations for attendance")
+	}
+
+	if len(integrationAfterSelectHooks) != 0 {
+		for _, obj := range resultSlice {
+			if err := obj.doAfterSelectHooks(e); err != nil {
+				return err
+			}
+		}
+	}
+
+	if len(resultSlice) == 0 {
+		return nil
+	}
+
+	if singular {
+		foreign := resultSlice[0]
+		object.R.Attendance = foreign
+		if foreign.R == nil {
+			foreign.R = &attendanceR{}
+		}
+		foreign.R.Integration = object
+	}
+
+	for _, local := range slice {
+		for _, foreign := range resultSlice {
+			if queries.Equal(local.ID, foreign.IntegrationID) {
+				local.R.Attendance = foreign
+				if foreign.R == nil {
+					foreign.R = &attendanceR{}
+				}
+				foreign.R.Integration = local
+				break
+			}
+		}
+	}
+
+	return nil
 }
 
 // LoadFriend allows an eager lookup of values, cached into the
@@ -479,98 +697,144 @@ func (integrationL) LoadFriend(e boil.Executor, singular bool, maybeIntegration 
 	return nil
 }
 
-// LoadAttendances allows an eager lookup of values, cached into the
-// loaded structs of the objects. This is for a 1-M or N-M relationship.
-func (integrationL) LoadAttendances(e boil.Executor, singular bool, maybeIntegration interface{}, mods queries.Applicator) error {
-	var slice []*Integration
-	var object *Integration
+// SetUserG of the integration to the related item.
+// Sets o.R.User to related.
+// Adds o to related.R.Integrations.
+// Uses the global database handle.
+func (o *Integration) SetUserG(insert bool, related *User) error {
+	return o.SetUser(boil.GetDB(), insert, related)
+}
 
-	if singular {
-		object = maybeIntegration.(*Integration)
-	} else {
-		slice = *maybeIntegration.(*[]*Integration)
-	}
-
-	args := make([]interface{}, 0, 1)
-	if singular {
-		if object.R == nil {
-			object.R = &integrationR{}
-		}
-		args = append(args, object.ID)
-	} else {
-	Outer:
-		for _, obj := range slice {
-			if obj.R == nil {
-				obj.R = &integrationR{}
-			}
-
-			for _, a := range args {
-				if queries.Equal(a, obj.ID) {
-					continue Outer
-				}
-			}
-
-			args = append(args, obj.ID)
+// SetUser of the integration to the related item.
+// Sets o.R.User to related.
+// Adds o to related.R.Integrations.
+func (o *Integration) SetUser(exec boil.Executor, insert bool, related *User) error {
+	var err error
+	if insert {
+		if err = related.Insert(exec, boil.Infer()); err != nil {
+			return errors.Wrap(err, "failed to insert into foreign table")
 		}
 	}
 
-	if len(args) == 0 {
+	updateQuery := fmt.Sprintf(
+		"UPDATE \"integrations\" SET %s WHERE %s",
+		strmangle.SetParamNames("\"", "\"", 0, []string{"user_id"}),
+		strmangle.WhereClause("\"", "\"", 0, integrationPrimaryKeyColumns),
+	)
+	values := []interface{}{related.ID, o.ID}
+
+	if boil.DebugMode {
+		fmt.Fprintln(boil.DebugWriter, updateQuery)
+		fmt.Fprintln(boil.DebugWriter, values)
+	}
+
+	if _, err = exec.Exec(updateQuery, values...); err != nil {
+		return errors.Wrap(err, "failed to update local table")
+	}
+
+	queries.Assign(&o.UserID, related.ID)
+	if o.R == nil {
+		o.R = &integrationR{
+			User: related,
+		}
+	} else {
+		o.R.User = related
+	}
+
+	if related.R == nil {
+		related.R = &userR{
+			Integrations: IntegrationSlice{o},
+		}
+	} else {
+		related.R.Integrations = append(related.R.Integrations, o)
+	}
+
+	return nil
+}
+
+// SetAttendanceG of the integration to the related item.
+// Sets o.R.Attendance to related.
+// Adds o to related.R.Integration.
+// Uses the global database handle.
+func (o *Integration) SetAttendanceG(insert bool, related *Attendance) error {
+	return o.SetAttendance(boil.GetDB(), insert, related)
+}
+
+// SetAttendance of the integration to the related item.
+// Sets o.R.Attendance to related.
+// Adds o to related.R.Integration.
+func (o *Integration) SetAttendance(exec boil.Executor, insert bool, related *Attendance) error {
+	var err error
+
+	if insert {
+		queries.Assign(&related.IntegrationID, o.ID)
+
+		if err = related.Insert(exec, boil.Infer()); err != nil {
+			return errors.Wrap(err, "failed to insert into foreign table")
+		}
+	} else {
+		updateQuery := fmt.Sprintf(
+			"UPDATE \"attendance\" SET %s WHERE %s",
+			strmangle.SetParamNames("\"", "\"", 0, []string{"integration_id"}),
+			strmangle.WhereClause("\"", "\"", 0, attendancePrimaryKeyColumns),
+		)
+		values := []interface{}{o.ID, related.Timestamp, related.IntegrationID, related.FriendID}
+
+		if boil.DebugMode {
+			fmt.Fprintln(boil.DebugWriter, updateQuery)
+			fmt.Fprintln(boil.DebugWriter, values)
+		}
+
+		if _, err = exec.Exec(updateQuery, values...); err != nil {
+			return errors.Wrap(err, "failed to update foreign table")
+		}
+
+		queries.Assign(&related.IntegrationID, o.ID)
+	}
+
+	if o.R == nil {
+		o.R = &integrationR{
+			Attendance: related,
+		}
+	} else {
+		o.R.Attendance = related
+	}
+
+	if related.R == nil {
+		related.R = &attendanceR{
+			Integration: o,
+		}
+	} else {
+		related.R.Integration = o
+	}
+	return nil
+}
+
+// RemoveAttendanceG relationship.
+// Sets o.R.Attendance to nil.
+// Removes o from all passed in related items' relationships struct (Optional).
+// Uses the global database handle.
+func (o *Integration) RemoveAttendanceG(related *Attendance) error {
+	return o.RemoveAttendance(boil.GetDB(), related)
+}
+
+// RemoveAttendance relationship.
+// Sets o.R.Attendance to nil.
+// Removes o from all passed in related items' relationships struct (Optional).
+func (o *Integration) RemoveAttendance(exec boil.Executor, related *Attendance) error {
+	var err error
+
+	queries.SetScanner(&related.IntegrationID, nil)
+	if _, err = related.Update(exec, boil.Whitelist("integration_id")); err != nil {
+		return errors.Wrap(err, "failed to update local table")
+	}
+
+	o.R.Attendance = nil
+	if related == nil || related.R == nil {
 		return nil
 	}
 
-	query := NewQuery(qm.From(`attendance`), qm.WhereIn(`attendance.integration_id in ?`, args...))
-	if mods != nil {
-		mods.Apply(query)
-	}
-
-	results, err := query.Query(e)
-	if err != nil {
-		return errors.Wrap(err, "failed to eager load attendance")
-	}
-
-	var resultSlice []*Attendance
-	if err = queries.Bind(results, &resultSlice); err != nil {
-		return errors.Wrap(err, "failed to bind eager loaded slice attendance")
-	}
-
-	if err = results.Close(); err != nil {
-		return errors.Wrap(err, "failed to close results in eager load on attendance")
-	}
-	if err = results.Err(); err != nil {
-		return errors.Wrap(err, "error occurred during iteration of eager loaded relations for attendance")
-	}
-
-	if len(attendanceAfterSelectHooks) != 0 {
-		for _, obj := range resultSlice {
-			if err := obj.doAfterSelectHooks(e); err != nil {
-				return err
-			}
-		}
-	}
-	if singular {
-		object.R.Attendances = resultSlice
-		for _, foreign := range resultSlice {
-			if foreign.R == nil {
-				foreign.R = &attendanceR{}
-			}
-			foreign.R.Integration = object
-		}
-		return nil
-	}
-
-	for _, foreign := range resultSlice {
-		for _, local := range slice {
-			if queries.Equal(local.ID, foreign.IntegrationID) {
-				local.R.Attendances = append(local.R.Attendances, foreign)
-				if foreign.R == nil {
-					foreign.R = &attendanceR{}
-				}
-				foreign.R.Integration = local
-				break
-			}
-		}
-	}
-
+	related.R.Integration = nil
 	return nil
 }
 
@@ -629,157 +893,6 @@ func (o *Integration) SetFriend(exec boil.Executor, insert bool, related *Friend
 	} else {
 		related.R.Integration = o
 	}
-	return nil
-}
-
-// AddAttendancesG adds the given related objects to the existing relationships
-// of the integration, optionally inserting them as new records.
-// Appends related to o.R.Attendances.
-// Sets related.R.Integration appropriately.
-// Uses the global database handle.
-func (o *Integration) AddAttendancesG(insert bool, related ...*Attendance) error {
-	return o.AddAttendances(boil.GetDB(), insert, related...)
-}
-
-// AddAttendances adds the given related objects to the existing relationships
-// of the integration, optionally inserting them as new records.
-// Appends related to o.R.Attendances.
-// Sets related.R.Integration appropriately.
-func (o *Integration) AddAttendances(exec boil.Executor, insert bool, related ...*Attendance) error {
-	var err error
-	for _, rel := range related {
-		if insert {
-			queries.Assign(&rel.IntegrationID, o.ID)
-			if err = rel.Insert(exec, boil.Infer()); err != nil {
-				return errors.Wrap(err, "failed to insert into foreign table")
-			}
-		} else {
-			updateQuery := fmt.Sprintf(
-				"UPDATE \"attendance\" SET %s WHERE %s",
-				strmangle.SetParamNames("\"", "\"", 0, []string{"integration_id"}),
-				strmangle.WhereClause("\"", "\"", 0, attendancePrimaryKeyColumns),
-			)
-			values := []interface{}{o.ID, rel.Timestamp, rel.FriendID}
-
-			if boil.DebugMode {
-				fmt.Fprintln(boil.DebugWriter, updateQuery)
-				fmt.Fprintln(boil.DebugWriter, values)
-			}
-
-			if _, err = exec.Exec(updateQuery, values...); err != nil {
-				return errors.Wrap(err, "failed to update foreign table")
-			}
-
-			queries.Assign(&rel.IntegrationID, o.ID)
-		}
-	}
-
-	if o.R == nil {
-		o.R = &integrationR{
-			Attendances: related,
-		}
-	} else {
-		o.R.Attendances = append(o.R.Attendances, related...)
-	}
-
-	for _, rel := range related {
-		if rel.R == nil {
-			rel.R = &attendanceR{
-				Integration: o,
-			}
-		} else {
-			rel.R.Integration = o
-		}
-	}
-	return nil
-}
-
-// SetAttendancesG removes all previously related items of the
-// integration replacing them completely with the passed
-// in related items, optionally inserting them as new records.
-// Sets o.R.Integration's Attendances accordingly.
-// Replaces o.R.Attendances with related.
-// Sets related.R.Integration's Attendances accordingly.
-// Uses the global database handle.
-func (o *Integration) SetAttendancesG(insert bool, related ...*Attendance) error {
-	return o.SetAttendances(boil.GetDB(), insert, related...)
-}
-
-// SetAttendances removes all previously related items of the
-// integration replacing them completely with the passed
-// in related items, optionally inserting them as new records.
-// Sets o.R.Integration's Attendances accordingly.
-// Replaces o.R.Attendances with related.
-// Sets related.R.Integration's Attendances accordingly.
-func (o *Integration) SetAttendances(exec boil.Executor, insert bool, related ...*Attendance) error {
-	query := "update \"attendance\" set \"integration_id\" = null where \"integration_id\" = ?"
-	values := []interface{}{o.ID}
-	if boil.DebugMode {
-		fmt.Fprintln(boil.DebugWriter, query)
-		fmt.Fprintln(boil.DebugWriter, values)
-	}
-
-	_, err := exec.Exec(query, values...)
-	if err != nil {
-		return errors.Wrap(err, "failed to remove relationships before set")
-	}
-
-	if o.R != nil {
-		for _, rel := range o.R.Attendances {
-			queries.SetScanner(&rel.IntegrationID, nil)
-			if rel.R == nil {
-				continue
-			}
-
-			rel.R.Integration = nil
-		}
-
-		o.R.Attendances = nil
-	}
-	return o.AddAttendances(exec, insert, related...)
-}
-
-// RemoveAttendancesG relationships from objects passed in.
-// Removes related items from R.Attendances (uses pointer comparison, removal does not keep order)
-// Sets related.R.Integration.
-// Uses the global database handle.
-func (o *Integration) RemoveAttendancesG(related ...*Attendance) error {
-	return o.RemoveAttendances(boil.GetDB(), related...)
-}
-
-// RemoveAttendances relationships from objects passed in.
-// Removes related items from R.Attendances (uses pointer comparison, removal does not keep order)
-// Sets related.R.Integration.
-func (o *Integration) RemoveAttendances(exec boil.Executor, related ...*Attendance) error {
-	var err error
-	for _, rel := range related {
-		queries.SetScanner(&rel.IntegrationID, nil)
-		if rel.R != nil {
-			rel.R.Integration = nil
-		}
-		if _, err = rel.Update(exec, boil.Whitelist("integration_id")); err != nil {
-			return err
-		}
-	}
-	if o.R == nil {
-		return nil
-	}
-
-	for _, rel := range related {
-		for i, ri := range o.R.Attendances {
-			if rel != ri {
-				continue
-			}
-
-			ln := len(o.R.Attendances)
-			if ln > 1 && i < ln-1 {
-				o.R.Attendances[i] = o.R.Attendances[ln-1]
-			}
-			o.R.Attendances = o.R.Attendances[:ln-1]
-			break
-		}
-	}
-
 	return nil
 }
 

@@ -1,6 +1,5 @@
 import * as React from "react"
 import MetaTags from "react-meta-tags"
-
 import { BrowserRouter as Router, Route, RouteComponentProps, Switch } from "react-router-dom"
 import { Client as Styletron } from "styletron-engine-atomic"
 import { Provider as StyletronProvider } from "styletron-react"
@@ -11,6 +10,7 @@ import { Integrations } from "./pages/Integrations"
 import { Friends } from "./pages/Friends"
 import { Nav } from "./components/Nav"
 import { Attendance } from "./pages/Attendance"
+import { SignIn } from "./pages/SignIn"
 
 const engine = new Styletron()
 interface Props extends RouteComponentProps {}
@@ -23,26 +23,53 @@ const Home = (props: Props) => {
 }
 const Routes = () => {
 	const [css, theme] = useStyletron()
+	const [validAuth, setValidAuth] = React.useState<boolean>(false)
 	const routeStyle: string = css({
 		width: "100%",
 		minHeight: "100vh",
 	})
+	const authCheck = async () => {
+		try {
+			const res = await fetch("/api/auth/check")
+			if (!res.ok) {
+				const err = await res.text()
+				throw new Error(err)
+			}
+
+			setValidAuth(true)
+		} catch (err) {
+			console.error(err)
+			setValidAuth(false)
+		}
+	}
+	React.useEffect(() => {
+		authCheck()
+	}, [])
 	return (
 		<div className={routeStyle}>
-			<Router>
-				<Nav />
-				<div>
-					<Switch>
-						<Route exact path="/" component={Home} />
-						{/* <Route path="/signin" component={SignIn} />
-				<Route path="/signup" component={SignUp} /> */}
-						<Route exact path="/integrations/:integration_id/friends" component={Friends} />
-						<Route exact path="/integrations/:integration_id/attendance" component={Attendance} />
-						{/* <Route path={"/verify/:code"} exact render={props => <EmailVerify code={props.match.params.code} />} /> */}
-						{/* <Route path="/verify" exact component={EmailVerify} /> */}
-					</Switch>
-				</div>
-			</Router>
+			{validAuth && (
+				<Router>
+					<Nav />
+					<div>
+						<Switch>
+							<Route exact path="/" component={Home} />
+							<Route exact path="/integrations/:integration_id/friends" component={Friends} />
+							<Route exact path="/integrations/:integration_id/attendance/:teacher_id" component={Attendance} />
+						</Switch>
+					</div>
+				</Router>
+			)}
+			{!validAuth && (
+				<Router>
+					<Nav />
+					<div>
+						<Switch>
+							<Route path="/" component={SignIn} />
+							{/* <Route path="/signup" component={SignUp} /> */}
+						</Switch>
+					</div>
+				</Router>
+			)}
 		</div>
 	)
 }

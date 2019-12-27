@@ -21,7 +21,9 @@ func connect() (*sqlx.DB, error) {
 	return conn, nil
 }
 func main() {
-	fmt.Println("Booting up accumulator system...")
+
+	jwtSecret := flag.String("jwt-secret", "contractible-roasted-mollusk", "jwt secret")
+	seed := flag.Bool("db-seed", false, "Seed fake data")
 	stepMinutes := flag.Int("step-minutes", 5, "Step time between scrapes")
 	rootPath := flag.String("root-path", "./web/dist", "Path of the webapp")
 	serverAddr := flag.String("server-addr", ":8081", "Address to host on")
@@ -34,11 +36,21 @@ func main() {
 		return
 	}
 	boil.SetDB(conn)
+
+	if *seed {
+		fmt.Println("Seeding accumulator system...")
+		err = accumulator.Seed()
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		return
+	}
+	fmt.Println("Booting up accumulator system...")
 	g := &run.Group{}
 	ctx, cancel := context.WithCancel(context.Background())
-
 	g.Add(func() error {
-		return accumulator.RunServer(ctx, conn, *serverAddr, accumulator.NewLogToStdOut("server", "0.0.1", false))
+		return accumulator.RunServer(ctx, conn, *serverAddr, *jwtSecret, accumulator.NewLogToStdOut("server", "0.0.1", false))
 	}, func(err error) {
 		fmt.Println(err)
 		cancel()

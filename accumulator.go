@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	vrc "github.com/nii236/vrchat-go/client"
 
@@ -17,6 +18,7 @@ import (
 
 	"github.com/caddyserver/caddy"
 	// http driver for caddy
+	"github.com/alexedwards/scs/v2"
 	_ "github.com/caddyserver/caddy/caddyhttp"
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
@@ -26,11 +28,13 @@ import (
 	"go.uber.org/zap"
 )
 
+var sessionManager *scs.SessionManager
+
 // ErrNotImplemented is used to stub empty funcs
 var ErrNotImplemented = errors.New("not implemented")
 
 // ErrUnableToPopulate occurs because of SQLite's ID creation order
-var ErrUnableToPopulate = "db: unable to populate default values for integrations"
+var ErrUnableToPopulate = "db: unable to populate default values"
 
 // HandlerFunc is a custom http.HandlerFunc that returns a status code and error
 type HandlerFunc func(w http.ResponseWriter, r *http.Request) (interface{}, int, error)
@@ -112,8 +116,11 @@ const caddyfileTemplate = `
 `
 
 // RunServer the service
-func RunServer(ctx context.Context, conn *sqlx.DB, serverAddr string, log *zap.SugaredLogger) error {
+func RunServer(ctx context.Context, conn *sqlx.DB, serverAddr string, jwtsecret string, log *zap.SugaredLogger) error {
+	sessionManager = scs.New()
+	sessionManager.Lifetime = 24 * time.Hour
 	log.Infow("start api", "svc-addr", serverAddr)
+	auther := NewAuther(jwtsecret)
 	// tokenAuth := jwtauth.New("HS256", []byte("secret"), nil)
 
 	// memcached, err := memory.NewAdapter(
@@ -147,13 +154,14 @@ func RunServer(ctx context.Context, conn *sqlx.DB, serverAddr string, log *zap.S
 			// r.Use(jwtauth.Authenticator)
 
 			r.Post("/auth/sign_out", withError(signOutHandler))
-			r.Post("/auth/check", withError(checkHandler))
+			r.Get("/auth/check", withError(checkHandler(auther)))
 			r.Post("/auth/set_password", withError(setPasswordHandler))
 
 			r.Get("/integrations/list", withError(integrationsListHandler))
+			r.Post("/integrations/{integration_id}/update_friends", withError(integrationUpdateFriendsHandler))
 			r.Post("/integrations/add_username", withError(integrationsAddUsernameHandler))
 			r.Post("/integrations/{integration_id}/delete", withError(integrationsDeleteHandler))
-			r.Get("/integrations/{integration_id}/attendance/list", withError(attendanceListHandler))
+			r.Get("/integrations/{integration_id}/attendance/{teacher_id}/list", withError(attendanceListHandler))
 			r.Get("/integrations/{integration_id}/friends/list", withError(friendListHandler))
 			r.Post("/integrations/{integration_id}/friends/refresh", withError(friendRefreshHandler))
 			r.Post("/integrations/{integration_id}/friends/{friend_id}/promote", withError(friendPromoteHandler))
@@ -162,17 +170,17 @@ func RunServer(ctx context.Context, conn *sqlx.DB, serverAddr string, log *zap.S
 
 		// Public routes
 		r.Group(func(r chi.Router) {
-			r.Post("/auth/sign_in", withError(signInHandler))
-			r.Post("/auth/sign_up", withError(signUpHandler))
-			r.Get("/auth/forgot_password", withError(signUpHandler))
-			r.Post("/auth/request_password_reset", withError(signUpHandler))
-			r.Post("/auth/reset_password", withError(signUpHandler))
+			r.Post("/auth/sign_in", withError(signInHandler(auther)))
+			r.Post("/auth/sign_up", withError(signUpHandler(auther)))
+			// r.Get("/auth/forgot_password", withError(forgotPasswordHandler))
+			// r.Post("/auth/request_password_reset", withError(requestPasswordResetHandler))
+			// r.Post("/auth/reset_password", withError(resetPasswordHandler))
 			r.Get("/metrics", withError(metricsHandler))
 		})
 
 	})
 
-	return http.ListenAndServe(serverAddr, r)
+	return http.ListenAndServe(serverAddr, sessionManager.LoadAndSave(r))
 }
 
 // RunLoadBalancer starts Caddy
@@ -207,8 +215,27 @@ func RunLoadBalancer(ctx context.Context, conn *sqlx.DB, loadBalancerAddr, serve
 	return nil
 }
 
-func checkHandler(w http.ResponseWriter, r *http.Request) (interface{}, int, error) {
-	return nil, 500, ErrNotImplemented
+func integrationUpdateFriendsHandler(w http.ResponseWriter, r *http.Request) (interface{}, int, error) {
+	IntegrationIDStr := chi.URLParam(r, "integration_id")
+	type Response struct {
+		Success bool `json:"success,omitempty"`
+	}
+	IntegrationID, err := strconv.Atoi(IntegrationIDStr)
+	if err != nil {
+		return nil, http.StatusInternalServerError, err
+	}
+	err = refreshFriendCache(IntegrationID)
+	if err != nil {
+		return nil, http.StatusInternalServerError, err
+	}
+	return &Response{true}, http.StatusOK, nil
+}
+func checkHandler(auther *Auther) func(w http.ResponseWriter, r *http.Request) (interface{}, int, error) {
+	fn := func(w http.ResponseWriter, r *http.Request) (interface{}, int, error) {
+		return nil, 500, ErrNotImplemented
+	}
+	return fn
+
 }
 func integrationsListHandler(w http.ResponseWriter, r *http.Request) (interface{}, int, error) {
 	type Response struct {
@@ -291,27 +318,78 @@ func integrationsDeleteHandler(w http.ResponseWriter, r *http.Request) (interfac
 }
 
 func signOutHandler(w http.ResponseWriter, r *http.Request) (interface{}, int, error) {
-	return nil, 200, ErrNotImplemented
-}
-func signInHandler(w http.ResponseWriter, r *http.Request) (interface{}, int, error) {
-	type Request struct {
-		Email    string
-		Password string
-	}
 	type Response struct {
-		Data string `json:"data"`
+		Success bool `json:"success"`
 	}
-	return nil, 200, ErrNotImplemented
+	cookie := http.Cookie{Name: "jwt", Value: "", Expires: time.Unix(0, 0), HttpOnly: true, Path: "/", SameSite: http.SameSiteDefaultMode, Secure: false}
+	http.SetCookie(w, &cookie)
+	w.WriteHeader(http.StatusOK)
+	return &Response{true}, http.StatusOK, nil
 }
-func signUpHandler(w http.ResponseWriter, r *http.Request) (interface{}, int, error) {
-	type Request struct {
-		Email    string
-		Password string
+func signInHandler(auther *Auther) func(w http.ResponseWriter, r *http.Request) (interface{}, int, error) {
+	fn := func(w http.ResponseWriter, r *http.Request) (interface{}, int, error) {
+		type Request struct {
+			Email    string
+			Password string
+		}
+		type Response struct {
+			Success bool `json:"success"`
+		}
+
+		req := &Request{}
+		err := json.NewDecoder(r.Body).Decode(req)
+		if err != nil {
+			return nil, http.StatusInternalServerError, err
+		}
+		defer r.Body.Close()
+
+		err = auther.ValidatePassword(req.Email, req.Password)
+		if err != nil {
+			return nil, http.StatusInternalServerError, err
+		}
+
+		user, err := db.Users(db.UserWhere.Email.EQ(req.Email)).OneG()
+		if err != nil {
+			return nil, http.StatusInternalServerError, err
+		}
+
+		expiration := time.Now().Add(time.Duration(30) * time.Hour * 24)
+		jwt, err := auther.GenerateJWT(user.Email, strconv.Itoa(int(user.ID.Int64)), expiration)
+		if err != nil {
+			return nil, http.StatusInternalServerError, err
+		}
+		cookie := http.Cookie{Name: "jwt", Value: jwt, Expires: expiration, HttpOnly: true, Path: "/", SameSite: http.SameSiteDefaultMode, Secure: false}
+		http.SetCookie(w, &cookie)
+
+		return &Response{true}, http.StatusOK, nil
 	}
-	type Response struct {
-		Data string `json:"data"`
+	return fn
+}
+func signUpHandler(auther *Auther) func(w http.ResponseWriter, r *http.Request) (interface{}, int, error) {
+	fn := func(w http.ResponseWriter, r *http.Request) (interface{}, int, error) {
+		type Request struct {
+			Email    string
+			Password string
+		}
+		type Response struct {
+			Data string `json:"data"`
+		}
+		req := &Request{}
+		err := json.NewDecoder(r.Body).Decode(req)
+		if err != nil {
+			return nil, http.StatusBadRequest, err
+		}
+		u := &db.User{
+			Email:        req.Email,
+			PasswordHash: auther.HashPassword(req.Password),
+		}
+		err = u.InsertG(boil.Infer())
+		if err != nil && !strings.Contains(err.Error(), ErrUnableToPopulate) {
+			return nil, http.StatusInternalServerError, err
+		}
+		return nil, 200, ErrNotImplemented
 	}
-	return nil, 200, ErrNotImplemented
+	return fn
 }
 func setPasswordHandler(w http.ResponseWriter, r *http.Request) (interface{}, int, error) {
 	type Request struct {
@@ -322,17 +400,27 @@ func setPasswordHandler(w http.ResponseWriter, r *http.Request) (interface{}, in
 
 func attendanceListHandler(w http.ResponseWriter, r *http.Request) (interface{}, int, error) {
 	IntegrationIDStr := chi.URLParam(r, "integration_id")
+	TeacherIDStr := chi.URLParam(r, "teacher_id")
 	type Response struct {
 		Data db.AttendanceSlice `json:"data"`
 	}
+
 	IntegrationID, err := strconv.Atoi(IntegrationIDStr)
 	if err != nil {
 		return nil, http.StatusInternalServerError, err
 	}
-	result, err := db.Attendances(db.AttendanceWhere.IntegrationID.EQ(null.Int64From(int64(IntegrationID)))).AllG()
+	TeacherID, err := strconv.Atoi(TeacherIDStr)
 	if err != nil {
 		return nil, http.StatusInternalServerError, err
 	}
+	result, err := db.Attendances(
+		db.AttendanceWhere.IntegrationID.EQ(null.Int64From(int64(IntegrationID))),
+		db.AttendanceWhere.TeacherID.EQ(null.Int64From(int64(TeacherID))),
+	).AllG()
+	if err != nil {
+		return nil, http.StatusInternalServerError, err
+	}
+
 	return &Response{result}, 200, nil
 }
 func friendListHandler(w http.ResponseWriter, r *http.Request) (interface{}, int, error) {
@@ -344,11 +432,11 @@ func friendListHandler(w http.ResponseWriter, r *http.Request) (interface{}, int
 	if err != nil {
 		return nil, http.StatusInternalServerError, err
 	}
-	err = refreshFriendCache(IntegrationID)
-	if err != nil {
-		return nil, http.StatusInternalServerError, err
-	}
-	result, err := db.Friends().AllG()
+	// err = refreshFriendCache(IntegrationID)
+	// if err != nil {
+	// 	return nil, http.StatusInternalServerError, err
+	// }
+	result, err := db.Friends(db.FriendWhere.IntegrationID.EQ(int64(IntegrationID))).AllG()
 	if err != nil {
 		return nil, 500, err
 	}

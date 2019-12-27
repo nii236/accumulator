@@ -811,7 +811,7 @@ func (o *Friend) SetAttendance(exec boil.Executor, insert bool, related *Attenda
 			strmangle.SetParamNames("\"", "\"", 0, []string{"friend_id"}),
 			strmangle.WhereClause("\"", "\"", 0, attendancePrimaryKeyColumns),
 		)
-		values := []interface{}{o.ID, related.Timestamp, related.FriendID}
+		values := []interface{}{o.ID, related.Timestamp, related.IntegrationID, related.FriendID}
 
 		if boil.DebugMode {
 			fmt.Fprintln(boil.DebugWriter, updateQuery)
@@ -898,7 +898,7 @@ func (o *Friend) AddTeacherAttendances(exec boil.Executor, insert bool, related 
 				strmangle.SetParamNames("\"", "\"", 0, []string{"teacher_id"}),
 				strmangle.WhereClause("\"", "\"", 0, attendancePrimaryKeyColumns),
 			)
-			values := []interface{}{o.ID, rel.Timestamp, rel.FriendID}
+			values := []interface{}{o.ID, rel.Timestamp, rel.IntegrationID, rel.FriendID}
 
 			if boil.DebugMode {
 				fmt.Fprintln(boil.DebugWriter, updateQuery)
