@@ -10,9 +10,12 @@ import { FlexGrid, FlexGridItem } from "baseui/flex-grid"
 import { BlockProps } from "baseui/block"
 import { Root } from "baseui/toast"
 import { UI } from "../controllers/ui"
+import { Avatar } from "baseui/avatar"
+import { H2 } from "baseui/typography"
 export interface friend {
 	id: number
 	is_teacher: boolean
+	avatar_blob_id: number
 	vrchat_id: string
 	vrchat_username: string
 	vrchat_display_name: string
@@ -20,7 +23,7 @@ export interface friend {
 	vrchat_avatar_thumbnail_image_url: string
 	vrchat_location: string
 }
-interface Props extends RouteComponentProps<{ integration_id: string }> {}
+interface Props extends RouteComponentProps<{ integration_id: string }> { }
 export const Friends = (props: Props) => {
 	const [friends, setFriends] = React.useState<friend[] | null>(null)
 	const [err, setErr] = React.useState<string | null>(null)
@@ -91,7 +94,26 @@ export const Friends = (props: Props) => {
 			<h1>Friends</h1>
 			<FlexGrid flexWrap={true} flexDirection={"row"} flexGridColumnCount={3} flexGridColumnGap="scale800" flexGridRowGap="scale800">
 				{friends &&
-					friends.map(friend => {
+					friends.filter(friend => !friend.is_teacher).map(friend => {
+						return (
+							<FlexGridItem key={friend.id} {...itemProps}>
+								<FriendItemContainer
+									key={friend.id}
+									friend={friend}
+									demoteToStudent={demoteToStudent}
+									promoteToTeacher={promoteToTeacher}
+									fetchFriends={fetchFriends}
+									setRedirect={setRedirect}
+									integration_id={props.match.params.integration_id}
+								/>
+							</FlexGridItem>
+						)
+					})}
+			</FlexGrid>
+			<h1>Teachers</h1>
+			<FlexGrid flexWrap={true} flexDirection={"row"} flexGridColumnCount={3} flexGridColumnGap="scale800" flexGridRowGap="scale800">
+				{friends &&
+					friends.filter(friend => friend.is_teacher).map(friend => {
 						return (
 							<FlexGridItem key={friend.id} {...itemProps}>
 								<FriendItemContainer
@@ -112,22 +134,22 @@ export const Friends = (props: Props) => {
 }
 interface FriendItemContainerProps {
 	friend: friend
-	demoteToStudent: (friendID: string) => void
-	promoteToTeacher: (friendID: string) => void
-	fetchFriends: () => void
+	demoteToStudent: (friendID: string) => Promise<void>
+	promoteToTeacher: (friendID: string) => Promise<void>
+	fetchFriends: () => Promise<void>
 	setRedirect: (url: string) => void
 	integration_id: string
 }
 const FriendItemContainer = (props: FriendItemContainerProps) => {
 	const role = props.friend.is_teacher ? "teacher" : "student"
 	const location = props.friend.vrchat_location
-	const demote = () => {
+	const demote = async () => {
 		props.demoteToStudent(props.friend.vrchat_id)
 	}
-	const promote = () => {
+	const promote = async () => {
 		props.promoteToTeacher(props.friend.vrchat_id)
 	}
-	const fetch = () => {
+	const fetch = async () => {
 		props.fetchFriends()
 	}
 	const redirectToAttendance = () => {
@@ -141,7 +163,7 @@ const FriendItemContainer = (props: FriendItemContainerProps) => {
 			promote={promote}
 			fetch={fetch}
 			redirectToAttendance={redirectToAttendance}
-			headerImageURL={props.friend.vrchat_avatar_image_url}
+			headerImageURL={`/api/blobs/${props.friend.avatar_blob_id}`}
 			title={props.friend.vrchat_display_name}
 		/>
 	)
@@ -150,9 +172,9 @@ const FriendItemContainer = (props: FriendItemContainerProps) => {
 interface ItemProps {
 	role: "student" | "teacher"
 	location: string
-	demote: () => void
-	promote: () => void
-	fetch: () => void
+	demote: () => Promise<void>
+	promote: () => Promise<void>
+	fetch: () => Promise<void>
 	redirectToAttendance: () => void
 	headerImageURL: string
 	title: string
@@ -160,13 +182,27 @@ interface ItemProps {
 const FriendCard = (props: ItemProps) => {
 	const ui = UI.useContainer()
 	return (
-		<Card overrides={{ Root: { style: { width: "100%", height: "100%" } } }} headerImage={props.headerImageURL} title={props.title}>
+		<Card overrides={{ Root: { style: { width: "100%", height: "100%" } } }} title={<Avatar
+			name={props.title}
+			size="scale2400"
+			overrides={{
+				Root: {
+					style: { display: "block" }
+				},
+
+				Avatar: {
+					style: { marginLeft: "auto", marginRight: "auto" }
+				}
+			}}
+			src={props.headerImageURL}
+		/>}>
 			<StyledBody>
+				<H2>{props.title}</H2>
 				<p>
 					<em>{props.role}</em>
 				</p>
 				<p>
-					<em>{props.location}</em>
+					<em style={{ wordWrap: "break-word" }}>{props.location}</em>
 				</p>
 			</StyledBody>
 			<StyledAction>

@@ -3,8 +3,11 @@ package accumulator
 import (
 	"accumulator/db"
 	"fmt"
+	"io/ioutil"
+	"net/http"
 	"strings"
 
+	"github.com/gofrs/uuid"
 	vrc "github.com/nii236/vrchat-go/client"
 	"github.com/volatiletech/null"
 	"github.com/volatiletech/sqlboiler/boil"
@@ -20,22 +23,46 @@ func refreshFriendCache(IntegrationID int) error {
 	if err != nil {
 		return err
 	}
-	vrcResult, err := client.FriendList(true)
+	vrcResult, err := client.FriendList(false)
 	if err != nil {
 		return err
 	}
 
+	vrcResult2, err := client.FriendList(true)
+	if err != nil {
+		return err
+	}
+	vrcResult = append(vrcResult, vrcResult2...)
 	for _, vrcFriend := range vrcResult {
-		// TODO: Handle blob
-		// avatarBlob := &db.Blob{}
-		// err = avatarBlob.InsertG()
-		// if err != nil && !strings.Contains(err.Error(), ErrUnableToPopulate) {
-		// 	fmt.Println(err)
-
-		// }
-
+		resp, err := http.Get(vrcFriend.CurrentAvatarThumbnailImageURL)
+		if err != nil {
+			fmt.Println(err)
+			continue
+		}
+		b, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			fmt.Println(err)
+			continue
+		}
+		blobFilename := uuid.Must(uuid.NewV4()).String()
+		blob := &db.Blob{
+			FileName:      blobFilename,
+			MimeType:      "image/jpg",
+			FileSizeBytes: int64(len(b)),
+			EXTENSION:     "jpg",
+			File:          b,
+		}
+		err = blob.InsertG(boil.Infer())
+		if err != nil && !strings.Contains(err.Error(), ErrUnableToPopulate) {
+			return err
+		}
+		savedBlob, err := db.Blobs(db.BlobWhere.FileName.EQ(blobFilename)).OneG()
+		if err != nil {
+			return err
+		}
 		record := &db.Friend{
 			IntegrationID:                 int64(IntegrationID),
+			AvatarBlobID:                  savedBlob.ID,
 			VrchatID:                      vrcFriend.ID,
 			VrchatUsername:                vrcFriend.Username,
 			VrchatDisplayName:             vrcFriend.DisplayName,

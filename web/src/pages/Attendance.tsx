@@ -91,9 +91,9 @@ export const Attendance = (props: Props) => {
 				return (
 					<div>
 						<h2>Student: {name}</h2>
-						<Table $gridTemplateColumns="minmax(400px, max-content) 200px 200px">
-							<HeadCell>Column 1</HeadCell>
-							<HeadCell>Column 2</HeadCell>
+						<Table $gridTemplateColumns="200px minmax(400px, max-content)">
+							<HeadCell>Time</HeadCell>
+							<HeadCell>Location</HeadCell>
 							{arr
 								.sort((a, b) => {
 									if (a.timestamp === b.timestamp) {

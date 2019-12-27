@@ -7,12 +7,18 @@ import { Redirect } from "react-router-dom"
 import { Spinner } from "baseui/spinner"
 import { useUI, UI } from "../controllers/ui"
 import { Modal, ModalHeader, ModalBody, ModalFooter, ModalButton } from "baseui/modal"
-export const Nav = () => {
-	const [thinking, setThinking] = React.useState<boolean>(false)
+import { Paragraph1 } from "baseui/typography"
+interface Props {
+	email: string
+	role: string
+}
+export const Nav = (props: Props) => {
+	const [modalThinking, setModalThinking] = React.useState<boolean>(false)
 	const [redirect, setRedirect] = React.useState<string | null>(null)
 	const [err, setErr] = React.useState<string | null>(null)
 	const { startThinking } = UI.useContainer()
 	const [isOpen, setIsOpen] = React.useState(false)
+	const [jwt, setJwt] = React.useState<string | null>(null)
 
 	if (redirect) {
 		return <Redirect to={redirect} push />
@@ -30,9 +36,7 @@ export const Nav = () => {
 		}
 		window.location.href = "/"
 	}
-	if (thinking) {
-		return <Spinner overrides={{ Svg: { style: { marginTop: "10rem", display: "block", marginLeft: "auto", marginRight: "auto" } } }} />
-	}
+
 	return (
 		<HeaderNavigation>
 			<NavigationList $align={ALIGN.left}>
@@ -40,18 +44,39 @@ export const Nav = () => {
 					<Link href="/">Home</Link>
 				</NavigationItem>
 				<NavigationItem>
+					<Link href="/documentation">Docs</Link>
+				</NavigationItem>
+				{props.role == "admin" && <NavigationItem>
+					<Link href="/users">Users</Link>
+				</NavigationItem>}
+				<NavigationItem>
 					<div
 						style={{ textDecoration: "underline" }}
-						onClick={() => {
+						onClick={async () => {
 							setIsOpen(true)
+							setModalThinking(true)
+							const res = await fetch("/api/auth/jwt")
+							const data: { data: string } = await res.json()
+							setJwt(data.data)
+							setModalThinking(false)
 						}}>
 						API Keys
 					</div>
 					<React.Fragment>
 						<Modal onClose={() => setIsOpen(false)} isOpen={isOpen}>
-							<ModalHeader>Hello world</ModalHeader>
+							<ModalHeader>Your API token</ModalHeader>
 							<ModalBody>
-								Proin ut dui sed metus pharetra hend rerit vel non mi. Nulla ornare faucibus ex, non facilisis nisl. Maecenas aliquet mauris ut tempus.
+								<Paragraph1>
+									Use the following token in your Authorization Header.
+								</Paragraph1>
+								<pre style={{
+									whiteSpace: "pre-wrap",
+									wordWrap: "break-word",
+
+								}}>
+									{`Authorization: Bearer ${jwt}`}
+								</pre>
+
 							</ModalBody>
 							<ModalFooter>
 								<ModalButton onClick={() => setIsOpen(false)}>Okay</ModalButton>
@@ -63,6 +88,9 @@ export const Nav = () => {
 			<NavigationList $align={ALIGN.center} />
 			<NavigationList $align={ALIGN.right}>
 				<NavigationItem>
+					{props.email}
+				</NavigationItem>
+				<NavigationItem>
 					<Button
 						onClick={async () => {
 							startThinking()
@@ -72,6 +100,6 @@ export const Nav = () => {
 					</Button>
 				</NavigationItem>
 			</NavigationList>
-		</HeaderNavigation>
+		</HeaderNavigation >
 	)
 }

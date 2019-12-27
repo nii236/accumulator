@@ -1,3 +1,18 @@
+CREATE TABLE blobs (
+    id INTEGER PRIMARY KEY,
+    file_name VARCHAR UNIQUE NOT NULL,
+    mime_type VARCHAR NOT NULL,
+    file_size_bytes INT NOT NULL,
+    EXTENSION VARCHAR NOT NULL,
+    file BLOB NOT NULL,
+    views INTEGER DEFAULT 0,
+
+    archived BOOLEAN NOT NULL DEFAULT 0,
+    archived_at DATETIME,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE users (
     id INTEGER PRIMARY KEY,
     email VARCHAR NOT NULL,
@@ -30,7 +45,7 @@ CREATE TABLE friends (
     vrchat_avatar_image_url VARCHAR NOT NULL,
     vrchat_avatar_thumbnail_image_url VARCHAR NOT NULL,
     vrchat_location VARCHAR NOT NULL,
-    avatar_blob_id VARCHAR,
+    avatar_blob_id INT REFERENCES blobs(id),
 
     archived BOOLEAN NOT NULL DEFAULT 0,
     archived_at DATETIME,
@@ -53,19 +68,4 @@ CREATE TABLE attendance (
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     
     PRIMARY KEY (timestamp, friend_id, integration_id)
-);
-
-CREATE TABLE blobs (
-    id INTEGER PRIMARY KEY,
-    file_name VARCHAR NOT NULL,
-    mime_type VARCHAR NOT NULL,
-    file_size_bytes INT NOT NULL,
-    EXTENSION VARCHAR NOT NULL,
-    file BLOB NOT NULL,
-    views INTEGER DEFAULT 0,
-
-    archived BOOLEAN NOT NULL DEFAULT 0,
-    archived_at DATETIME,
-    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );

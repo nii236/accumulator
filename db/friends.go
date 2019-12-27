@@ -22,20 +22,20 @@ import (
 
 // Friend is an object representing the database table.
 type Friend struct {
-	ID                            null.Int64  `boil:"id" json:"id,omitempty" toml:"id" yaml:"id,omitempty"`
-	IntegrationID                 int64       `boil:"integration_id" json:"integration_id" toml:"integration_id" yaml:"integration_id"`
-	IsTeacher                     bool        `boil:"is_teacher" json:"is_teacher" toml:"is_teacher" yaml:"is_teacher"`
-	VrchatID                      string      `boil:"vrchat_id" json:"vrchat_id" toml:"vrchat_id" yaml:"vrchat_id"`
-	VrchatUsername                string      `boil:"vrchat_username" json:"vrchat_username" toml:"vrchat_username" yaml:"vrchat_username"`
-	VrchatDisplayName             string      `boil:"vrchat_display_name" json:"vrchat_display_name" toml:"vrchat_display_name" yaml:"vrchat_display_name"`
-	VrchatAvatarImageURL          string      `boil:"vrchat_avatar_image_url" json:"vrchat_avatar_image_url" toml:"vrchat_avatar_image_url" yaml:"vrchat_avatar_image_url"`
-	VrchatAvatarThumbnailImageURL string      `boil:"vrchat_avatar_thumbnail_image_url" json:"vrchat_avatar_thumbnail_image_url" toml:"vrchat_avatar_thumbnail_image_url" yaml:"vrchat_avatar_thumbnail_image_url"`
-	VrchatLocation                string      `boil:"vrchat_location" json:"vrchat_location" toml:"vrchat_location" yaml:"vrchat_location"`
-	AvatarBlobID                  null.String `boil:"avatar_blob_id" json:"avatar_blob_id,omitempty" toml:"avatar_blob_id" yaml:"avatar_blob_id,omitempty"`
-	Archived                      bool        `boil:"archived" json:"archived" toml:"archived" yaml:"archived"`
-	ArchivedAt                    null.Time   `boil:"archived_at" json:"archived_at,omitempty" toml:"archived_at" yaml:"archived_at,omitempty"`
-	UpdatedAt                     time.Time   `boil:"updated_at" json:"updated_at" toml:"updated_at" yaml:"updated_at"`
-	CreatedAt                     time.Time   `boil:"created_at" json:"created_at" toml:"created_at" yaml:"created_at"`
+	ID                            null.Int64 `boil:"id" json:"id,omitempty" toml:"id" yaml:"id,omitempty"`
+	IntegrationID                 int64      `boil:"integration_id" json:"integration_id" toml:"integration_id" yaml:"integration_id"`
+	IsTeacher                     bool       `boil:"is_teacher" json:"is_teacher" toml:"is_teacher" yaml:"is_teacher"`
+	VrchatID                      string     `boil:"vrchat_id" json:"vrchat_id" toml:"vrchat_id" yaml:"vrchat_id"`
+	VrchatUsername                string     `boil:"vrchat_username" json:"vrchat_username" toml:"vrchat_username" yaml:"vrchat_username"`
+	VrchatDisplayName             string     `boil:"vrchat_display_name" json:"vrchat_display_name" toml:"vrchat_display_name" yaml:"vrchat_display_name"`
+	VrchatAvatarImageURL          string     `boil:"vrchat_avatar_image_url" json:"vrchat_avatar_image_url" toml:"vrchat_avatar_image_url" yaml:"vrchat_avatar_image_url"`
+	VrchatAvatarThumbnailImageURL string     `boil:"vrchat_avatar_thumbnail_image_url" json:"vrchat_avatar_thumbnail_image_url" toml:"vrchat_avatar_thumbnail_image_url" yaml:"vrchat_avatar_thumbnail_image_url"`
+	VrchatLocation                string     `boil:"vrchat_location" json:"vrchat_location" toml:"vrchat_location" yaml:"vrchat_location"`
+	AvatarBlobID                  null.Int64 `boil:"avatar_blob_id" json:"avatar_blob_id,omitempty" toml:"avatar_blob_id" yaml:"avatar_blob_id,omitempty"`
+	Archived                      bool       `boil:"archived" json:"archived" toml:"archived" yaml:"archived"`
+	ArchivedAt                    null.Time  `boil:"archived_at" json:"archived_at,omitempty" toml:"archived_at" yaml:"archived_at,omitempty"`
+	UpdatedAt                     time.Time  `boil:"updated_at" json:"updated_at" toml:"updated_at" yaml:"updated_at"`
+	CreatedAt                     time.Time  `boil:"created_at" json:"created_at" toml:"created_at" yaml:"created_at"`
 
 	R *friendR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L friendL  `boil:"-" json:"-" toml:"-" yaml:"-"`
@@ -75,29 +75,6 @@ var FriendColumns = struct {
 
 // Generated where
 
-type whereHelpernull_String struct{ field string }
-
-func (w whereHelpernull_String) EQ(x null.String) qm.QueryMod {
-	return qmhelper.WhereNullEQ(w.field, false, x)
-}
-func (w whereHelpernull_String) NEQ(x null.String) qm.QueryMod {
-	return qmhelper.WhereNullEQ(w.field, true, x)
-}
-func (w whereHelpernull_String) IsNull() qm.QueryMod    { return qmhelper.WhereIsNull(w.field) }
-func (w whereHelpernull_String) IsNotNull() qm.QueryMod { return qmhelper.WhereIsNotNull(w.field) }
-func (w whereHelpernull_String) LT(x null.String) qm.QueryMod {
-	return qmhelper.Where(w.field, qmhelper.LT, x)
-}
-func (w whereHelpernull_String) LTE(x null.String) qm.QueryMod {
-	return qmhelper.Where(w.field, qmhelper.LTE, x)
-}
-func (w whereHelpernull_String) GT(x null.String) qm.QueryMod {
-	return qmhelper.Where(w.field, qmhelper.GT, x)
-}
-func (w whereHelpernull_String) GTE(x null.String) qm.QueryMod {
-	return qmhelper.Where(w.field, qmhelper.GTE, x)
-}
-
 var FriendWhere = struct {
 	ID                            whereHelpernull_Int64
 	IntegrationID                 whereHelperint64
@@ -108,7 +85,7 @@ var FriendWhere = struct {
 	VrchatAvatarImageURL          whereHelperstring
 	VrchatAvatarThumbnailImageURL whereHelperstring
 	VrchatLocation                whereHelperstring
-	AvatarBlobID                  whereHelpernull_String
+	AvatarBlobID                  whereHelpernull_Int64
 	Archived                      whereHelperbool
 	ArchivedAt                    whereHelpernull_Time
 	UpdatedAt                     whereHelpertime_Time
@@ -123,7 +100,7 @@ var FriendWhere = struct {
 	VrchatAvatarImageURL:          whereHelperstring{field: "\"friends\".\"vrchat_avatar_image_url\""},
 	VrchatAvatarThumbnailImageURL: whereHelperstring{field: "\"friends\".\"vrchat_avatar_thumbnail_image_url\""},
 	VrchatLocation:                whereHelperstring{field: "\"friends\".\"vrchat_location\""},
-	AvatarBlobID:                  whereHelpernull_String{field: "\"friends\".\"avatar_blob_id\""},
+	AvatarBlobID:                  whereHelpernull_Int64{field: "\"friends\".\"avatar_blob_id\""},
 	Archived:                      whereHelperbool{field: "\"friends\".\"archived\""},
 	ArchivedAt:                    whereHelpernull_Time{field: "\"friends\".\"archived_at\""},
 	UpdatedAt:                     whereHelpertime_Time{field: "\"friends\".\"updated_at\""},
@@ -132,10 +109,12 @@ var FriendWhere = struct {
 
 // FriendRels is where relationship names are stored.
 var FriendRels = struct {
+	AvatarBlob         string
 	Integration        string
 	Attendance         string
 	TeacherAttendances string
 }{
+	AvatarBlob:         "AvatarBlob",
 	Integration:        "Integration",
 	Attendance:         "Attendance",
 	TeacherAttendances: "TeacherAttendances",
@@ -143,6 +122,7 @@ var FriendRels = struct {
 
 // friendR is where relationships are stored.
 type friendR struct {
+	AvatarBlob         *Blob
 	Integration        *Integration
 	Attendance         *Attendance
 	TeacherAttendances AttendanceSlice
@@ -422,6 +402,20 @@ func (q friendQuery) Exists(exec boil.Executor) (bool, error) {
 	return count > 0, nil
 }
 
+// AvatarBlob pointed to by the foreign key.
+func (o *Friend) AvatarBlob(mods ...qm.QueryMod) blobQuery {
+	queryMods := []qm.QueryMod{
+		qm.Where("\"id\" = ?", o.AvatarBlobID),
+	}
+
+	queryMods = append(queryMods, mods...)
+
+	query := Blobs(queryMods...)
+	queries.SetFrom(query.Query, "\"blobs\"")
+
+	return query
+}
+
 // Integration pointed to by the foreign key.
 func (o *Friend) Integration(mods ...qm.QueryMod) integrationQuery {
 	queryMods := []qm.QueryMod{
@@ -469,6 +463,111 @@ func (o *Friend) TeacherAttendances(mods ...qm.QueryMod) attendanceQuery {
 	}
 
 	return query
+}
+
+// LoadAvatarBlob allows an eager lookup of values, cached into the
+// loaded structs of the objects. This is for an N-1 relationship.
+func (friendL) LoadAvatarBlob(e boil.Executor, singular bool, maybeFriend interface{}, mods queries.Applicator) error {
+	var slice []*Friend
+	var object *Friend
+
+	if singular {
+		object = maybeFriend.(*Friend)
+	} else {
+		slice = *maybeFriend.(*[]*Friend)
+	}
+
+	args := make([]interface{}, 0, 1)
+	if singular {
+		if object.R == nil {
+			object.R = &friendR{}
+		}
+		if !queries.IsNil(object.AvatarBlobID) {
+			args = append(args, object.AvatarBlobID)
+		}
+
+	} else {
+	Outer:
+		for _, obj := range slice {
+			if obj.R == nil {
+				obj.R = &friendR{}
+			}
+
+			for _, a := range args {
+				if queries.Equal(a, obj.AvatarBlobID) {
+					continue Outer
+				}
+			}
+
+			if !queries.IsNil(obj.AvatarBlobID) {
+				args = append(args, obj.AvatarBlobID)
+			}
+
+		}
+	}
+
+	if len(args) == 0 {
+		return nil
+	}
+
+	query := NewQuery(qm.From(`blobs`), qm.WhereIn(`blobs.id in ?`, args...))
+	if mods != nil {
+		mods.Apply(query)
+	}
+
+	results, err := query.Query(e)
+	if err != nil {
+		return errors.Wrap(err, "failed to eager load Blob")
+	}
+
+	var resultSlice []*Blob
+	if err = queries.Bind(results, &resultSlice); err != nil {
+		return errors.Wrap(err, "failed to bind eager loaded slice Blob")
+	}
+
+	if err = results.Close(); err != nil {
+		return errors.Wrap(err, "failed to close results of eager load for blobs")
+	}
+	if err = results.Err(); err != nil {
+		return errors.Wrap(err, "error occurred during iteration of eager loaded relations for blobs")
+	}
+
+	if len(friendAfterSelectHooks) != 0 {
+		for _, obj := range resultSlice {
+			if err := obj.doAfterSelectHooks(e); err != nil {
+				return err
+			}
+		}
+	}
+
+	if len(resultSlice) == 0 {
+		return nil
+	}
+
+	if singular {
+		foreign := resultSlice[0]
+		object.R.AvatarBlob = foreign
+		if foreign.R == nil {
+			foreign.R = &blobR{}
+		}
+		foreign.R.AvatarBlobFriends = append(foreign.R.AvatarBlobFriends, object)
+		return nil
+	}
+
+	for _, local := range slice {
+		for _, foreign := range resultSlice {
+			if queries.Equal(local.AvatarBlobID, foreign.ID) {
+				local.R.AvatarBlob = foreign
+				if foreign.R == nil {
+					foreign.R = &blobR{}
+				}
+				foreign.R.AvatarBlobFriends = append(foreign.R.AvatarBlobFriends, local)
+				break
+			}
+		}
+	}
+
+	return nil
 }
 
 // LoadIntegration allows an eager lookup of values, cached into the
@@ -766,6 +865,100 @@ func (friendL) LoadTeacherAttendances(e boil.Executor, singular bool, maybeFrien
 		}
 	}
 
+	return nil
+}
+
+// SetAvatarBlobG of the friend to the related item.
+// Sets o.R.AvatarBlob to related.
+// Adds o to related.R.AvatarBlobFriends.
+// Uses the global database handle.
+func (o *Friend) SetAvatarBlobG(insert bool, related *Blob) error {
+	return o.SetAvatarBlob(boil.GetDB(), insert, related)
+}
+
+// SetAvatarBlob of the friend to the related item.
+// Sets o.R.AvatarBlob to related.
+// Adds o to related.R.AvatarBlobFriends.
+func (o *Friend) SetAvatarBlob(exec boil.Executor, insert bool, related *Blob) error {
+	var err error
+	if insert {
+		if err = related.Insert(exec, boil.Infer()); err != nil {
+			return errors.Wrap(err, "failed to insert into foreign table")
+		}
+	}
+
+	updateQuery := fmt.Sprintf(
+		"UPDATE \"friends\" SET %s WHERE %s",
+		strmangle.SetParamNames("\"", "\"", 0, []string{"avatar_blob_id"}),
+		strmangle.WhereClause("\"", "\"", 0, friendPrimaryKeyColumns),
+	)
+	values := []interface{}{related.ID, o.ID}
+
+	if boil.DebugMode {
+		fmt.Fprintln(boil.DebugWriter, updateQuery)
+		fmt.Fprintln(boil.DebugWriter, values)
+	}
+
+	if _, err = exec.Exec(updateQuery, values...); err != nil {
+		return errors.Wrap(err, "failed to update local table")
+	}
+
+	queries.Assign(&o.AvatarBlobID, related.ID)
+	if o.R == nil {
+		o.R = &friendR{
+			AvatarBlob: related,
+		}
+	} else {
+		o.R.AvatarBlob = related
+	}
+
+	if related.R == nil {
+		related.R = &blobR{
+			AvatarBlobFriends: FriendSlice{o},
+		}
+	} else {
+		related.R.AvatarBlobFriends = append(related.R.AvatarBlobFriends, o)
+	}
+
+	return nil
+}
+
+// RemoveAvatarBlobG relationship.
+// Sets o.R.AvatarBlob to nil.
+// Removes o from all passed in related items' relationships struct (Optional).
+// Uses the global database handle.
+func (o *Friend) RemoveAvatarBlobG(related *Blob) error {
+	return o.RemoveAvatarBlob(boil.GetDB(), related)
+}
+
+// RemoveAvatarBlob relationship.
+// Sets o.R.AvatarBlob to nil.
+// Removes o from all passed in related items' relationships struct (Optional).
+func (o *Friend) RemoveAvatarBlob(exec boil.Executor, related *Blob) error {
+	var err error
+
+	queries.SetScanner(&o.AvatarBlobID, nil)
+	if _, err = o.Update(exec, boil.Whitelist("avatar_blob_id")); err != nil {
+		return errors.Wrap(err, "failed to update local table")
+	}
+
+	o.R.AvatarBlob = nil
+	if related == nil || related.R == nil {
+		return nil
+	}
+
+	for i, ri := range related.R.AvatarBlobFriends {
+		if queries.Equal(o.AvatarBlobID, ri.AvatarBlobID) {
+			continue
+		}
+
+		ln := len(related.R.AvatarBlobFriends)
+		if ln > 1 && i < ln-1 {
+			related.R.AvatarBlobFriends[i] = related.R.AvatarBlobFriends[ln-1]
+		}
+		related.R.AvatarBlobFriends = related.R.AvatarBlobFriends[:ln-1]
+		break
+	}
 	return nil
 }
 

@@ -15,8 +15,10 @@ import { SignUp } from "./pages/SignUp"
 import { Spinner } from "baseui/spinner"
 import { UI, useUI } from "./controllers/ui"
 import { H1 } from "baseui/typography"
+import { Users } from "./pages/Users"
+import { APIDocumentation } from "./pages/apidoc"
 
-interface Props extends RouteComponentProps {}
+interface Props extends RouteComponentProps { }
 const Home = (props: Props) => {
 	return (
 		<>
@@ -27,7 +29,7 @@ const Home = (props: Props) => {
 const Routes = () => {
 	const [css, theme] = useStyletron()
 	const ui = UI.useContainer()
-	const [validAuth, setValidAuth] = React.useState<boolean | null>(null)
+	const [validAuth, setValidAuth] = React.useState<{ email: string, role: string } | null>(null)
 	const routeStyle: string = css({
 		width: "100%",
 		minHeight: "100vh",
@@ -41,35 +43,40 @@ const Routes = () => {
 				const err = await res.text()
 				throw new Error(err)
 			}
-			setValidAuth(true)
+			const data: { data: { email: string, role: string } } = await res.json()
+			console.log(data)
+			setValidAuth(data.data)
 		} catch (err) {
 			console.error(err)
-			setValidAuth(false)
+			setValidAuth(null)
 		}
 		ui.stopThinking()
+
 	}
 	React.useEffect(() => {
 		authCheck()
 	}, [])
 
-	if (validAuth === null || ui.thinking) {
+	if (ui.thinking) {
 		return <Spinner overrides={{ Svg: { style: { marginTop: "10rem", display: "block", marginLeft: "auto", marginRight: "auto" } } }} />
 	}
 	return (
 		<div className={routeStyle}>
-			{validAuth === true && (
+			{validAuth && (
 				<Router>
-					<Nav />
+					<Nav email={validAuth.email} role={validAuth.role} />
 					<div>
 						<Switch>
 							<Route exact path="/" component={Home} />
+							<Route exact path="/documentation" component={APIDocumentation} />
+							<Route exact path="/users" component={Users} />
 							<Route exact path="/integrations/:integration_id/friends" component={Friends} />
 							<Route exact path="/integrations/:integration_id/attendance/:teacher_id" component={Attendance} />
 						</Switch>
 					</div>
 				</Router>
 			)}
-			{validAuth === false && (
+			{!validAuth && (
 				<Router>
 					<div>
 						<H1 overrides={{ Block: { style: { textAlign: "center" } } }}>VRNihongo Accumulator System</H1>

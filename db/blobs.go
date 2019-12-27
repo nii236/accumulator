@@ -103,10 +103,14 @@ var BlobWhere = struct {
 
 // BlobRels is where relationship names are stored.
 var BlobRels = struct {
-}{}
+	AvatarBlobFriends string
+}{
+	AvatarBlobFriends: "AvatarBlobFriends",
+}
 
 // blobR is where relationships are stored.
 type blobR struct {
+	AvatarBlobFriends FriendSlice
 }
 
 // NewStruct creates a new relationship struct
@@ -381,6 +385,273 @@ func (q blobQuery) Exists(exec boil.Executor) (bool, error) {
 	}
 
 	return count > 0, nil
+}
+
+// AvatarBlobFriends retrieves all the friend's Friends with an executor via avatar_blob_id column.
+func (o *Blob) AvatarBlobFriends(mods ...qm.QueryMod) friendQuery {
+	var queryMods []qm.QueryMod
+	if len(mods) != 0 {
+		queryMods = append(queryMods, mods...)
+	}
+
+	queryMods = append(queryMods,
+		qm.Where("\"friends\".\"avatar_blob_id\"=?", o.ID),
+	)
+
+	query := Friends(queryMods...)
+	queries.SetFrom(query.Query, "\"friends\"")
+
+	if len(queries.GetSelect(query.Query)) == 0 {
+		queries.SetSelect(query.Query, []string{"\"friends\".*"})
+	}
+
+	return query
+}
+
+// LoadAvatarBlobFriends allows an eager lookup of values, cached into the
+// loaded structs of the objects. This is for a 1-M or N-M relationship.
+func (blobL) LoadAvatarBlobFriends(e boil.Executor, singular bool, maybeBlob interface{}, mods queries.Applicator) error {
+	var slice []*Blob
+	var object *Blob
+
+	if singular {
+		object = maybeBlob.(*Blob)
+	} else {
+		slice = *maybeBlob.(*[]*Blob)
+	}
+
+	args := make([]interface{}, 0, 1)
+	if singular {
+		if object.R == nil {
+			object.R = &blobR{}
+		}
+		args = append(args, object.ID)
+	} else {
+	Outer:
+		for _, obj := range slice {
+			if obj.R == nil {
+				obj.R = &blobR{}
+			}
+
+			for _, a := range args {
+				if queries.Equal(a, obj.ID) {
+					continue Outer
+				}
+			}
+
+			args = append(args, obj.ID)
+		}
+	}
+
+	if len(args) == 0 {
+		return nil
+	}
+
+	query := NewQuery(qm.From(`friends`), qm.WhereIn(`friends.avatar_blob_id in ?`, args...))
+	if mods != nil {
+		mods.Apply(query)
+	}
+
+	results, err := query.Query(e)
+	if err != nil {
+		return errors.Wrap(err, "failed to eager load friends")
+	}
+
+	var resultSlice []*Friend
+	if err = queries.Bind(results, &resultSlice); err != nil {
+		return errors.Wrap(err, "failed to bind eager loaded slice friends")
+	}
+
+	if err = results.Close(); err != nil {
+		return errors.Wrap(err, "failed to close results in eager load on friends")
+	}
+	if err = results.Err(); err != nil {
+		return errors.Wrap(err, "error occurred during iteration of eager loaded relations for friends")
+	}
+
+	if len(friendAfterSelectHooks) != 0 {
+		for _, obj := range resultSlice {
+			if err := obj.doAfterSelectHooks(e); err != nil {
+				return err
+			}
+		}
+	}
+	if singular {
+		object.R.AvatarBlobFriends = resultSlice
+		for _, foreign := range resultSlice {
+			if foreign.R == nil {
+				foreign.R = &friendR{}
+			}
+			foreign.R.AvatarBlob = object
+		}
+		return nil
+	}
+
+	for _, foreign := range resultSlice {
+		for _, local := range slice {
+			if queries.Equal(local.ID, foreign.AvatarBlobID) {
+				local.R.AvatarBlobFriends = append(local.R.AvatarBlobFriends, foreign)
+				if foreign.R == nil {
+					foreign.R = &friendR{}
+				}
+				foreign.R.AvatarBlob = local
+				break
+			}
+		}
+	}
+
+	return nil
+}
+
+// AddAvatarBlobFriendsG adds the given related objects to the existing relationships
+// of the blob, optionally inserting them as new records.
+// Appends related to o.R.AvatarBlobFriends.
+// Sets related.R.AvatarBlob appropriately.
+// Uses the global database handle.
+func (o *Blob) AddAvatarBlobFriendsG(insert bool, related ...*Friend) error {
+	return o.AddAvatarBlobFriends(boil.GetDB(), insert, related...)
+}
+
+// AddAvatarBlobFriends adds the given related objects to the existing relationships
+// of the blob, optionally inserting them as new records.
+// Appends related to o.R.AvatarBlobFriends.
+// Sets related.R.AvatarBlob appropriately.
+func (o *Blob) AddAvatarBlobFriends(exec boil.Executor, insert bool, related ...*Friend) error {
+	var err error
+	for _, rel := range related {
+		if insert {
+			queries.Assign(&rel.AvatarBlobID, o.ID)
+			if err = rel.Insert(exec, boil.Infer()); err != nil {
+				return errors.Wrap(err, "failed to insert into foreign table")
+			}
+		} else {
+			updateQuery := fmt.Sprintf(
+				"UPDATE \"friends\" SET %s WHERE %s",
+				strmangle.SetParamNames("\"", "\"", 0, []string{"avatar_blob_id"}),
+				strmangle.WhereClause("\"", "\"", 0, friendPrimaryKeyColumns),
+			)
+			values := []interface{}{o.ID, rel.ID}
+
+			if boil.DebugMode {
+				fmt.Fprintln(boil.DebugWriter, updateQuery)
+				fmt.Fprintln(boil.DebugWriter, values)
+			}
+
+			if _, err = exec.Exec(updateQuery, values...); err != nil {
+				return errors.Wrap(err, "failed to update foreign table")
+			}
+
+			queries.Assign(&rel.AvatarBlobID, o.ID)
+		}
+	}
+
+	if o.R == nil {
+		o.R = &blobR{
+			AvatarBlobFriends: related,
+		}
+	} else {
+		o.R.AvatarBlobFriends = append(o.R.AvatarBlobFriends, related...)
+	}
+
+	for _, rel := range related {
+		if rel.R == nil {
+			rel.R = &friendR{
+				AvatarBlob: o,
+			}
+		} else {
+			rel.R.AvatarBlob = o
+		}
+	}
+	return nil
+}
+
+// SetAvatarBlobFriendsG removes all previously related items of the
+// blob replacing them completely with the passed
+// in related items, optionally inserting them as new records.
+// Sets o.R.AvatarBlob's AvatarBlobFriends accordingly.
+// Replaces o.R.AvatarBlobFriends with related.
+// Sets related.R.AvatarBlob's AvatarBlobFriends accordingly.
+// Uses the global database handle.
+func (o *Blob) SetAvatarBlobFriendsG(insert bool, related ...*Friend) error {
+	return o.SetAvatarBlobFriends(boil.GetDB(), insert, related...)
+}
+
+// SetAvatarBlobFriends removes all previously related items of the
+// blob replacing them completely with the passed
+// in related items, optionally inserting them as new records.
+// Sets o.R.AvatarBlob's AvatarBlobFriends accordingly.
+// Replaces o.R.AvatarBlobFriends with related.
+// Sets related.R.AvatarBlob's AvatarBlobFriends accordingly.
+func (o *Blob) SetAvatarBlobFriends(exec boil.Executor, insert bool, related ...*Friend) error {
+	query := "update \"friends\" set \"avatar_blob_id\" = null where \"avatar_blob_id\" = ?"
+	values := []interface{}{o.ID}
+	if boil.DebugMode {
+		fmt.Fprintln(boil.DebugWriter, query)
+		fmt.Fprintln(boil.DebugWriter, values)
+	}
+
+	_, err := exec.Exec(query, values...)
+	if err != nil {
+		return errors.Wrap(err, "failed to remove relationships before set")
+	}
+
+	if o.R != nil {
+		for _, rel := range o.R.AvatarBlobFriends {
+			queries.SetScanner(&rel.AvatarBlobID, nil)
+			if rel.R == nil {
+				continue
+			}
+
+			rel.R.AvatarBlob = nil
+		}
+
+		o.R.AvatarBlobFriends = nil
+	}
+	return o.AddAvatarBlobFriends(exec, insert, related...)
+}
+
+// RemoveAvatarBlobFriendsG relationships from objects passed in.
+// Removes related items from R.AvatarBlobFriends (uses pointer comparison, removal does not keep order)
+// Sets related.R.AvatarBlob.
+// Uses the global database handle.
+func (o *Blob) RemoveAvatarBlobFriendsG(related ...*Friend) error {
+	return o.RemoveAvatarBlobFriends(boil.GetDB(), related...)
+}
+
+// RemoveAvatarBlobFriends relationships from objects passed in.
+// Removes related items from R.AvatarBlobFriends (uses pointer comparison, removal does not keep order)
+// Sets related.R.AvatarBlob.
+func (o *Blob) RemoveAvatarBlobFriends(exec boil.Executor, related ...*Friend) error {
+	var err error
+	for _, rel := range related {
+		queries.SetScanner(&rel.AvatarBlobID, nil)
+		if rel.R != nil {
+			rel.R.AvatarBlob = nil
+		}
+		if _, err = rel.Update(exec, boil.Whitelist("avatar_blob_id")); err != nil {
+			return err
+		}
+	}
+	if o.R == nil {
+		return nil
+	}
+
+	for _, rel := range related {
+		for i, ri := range o.R.AvatarBlobFriends {
+			if rel != ri {
+				continue
+			}
+
+			ln := len(o.R.AvatarBlobFriends)
+			if ln > 1 && i < ln-1 {
+				o.R.AvatarBlobFriends[i] = o.R.AvatarBlobFriends[ln-1]
+			}
+			o.R.AvatarBlobFriends = o.R.AvatarBlobFriends[:ln-1]
+			break
+		}
+	}
+
+	return nil
 }
 
 // Blobs retrieves all the records using an executor.

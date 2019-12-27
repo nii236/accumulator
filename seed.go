@@ -4,13 +4,27 @@ import (
 	"accumulator/db"
 	"errors"
 	"fmt"
+	"io/ioutil"
+	"net/http"
 	"strings"
 
 	"github.com/bxcodec/faker/v3"
+	"github.com/gofrs/uuid"
 	"github.com/volatiletech/null"
 	"github.com/volatiletech/sqlboiler/boil"
 )
 
+func randomAvatar() ([]byte, error) {
+	resp, err := http.Get("https://i.pravatar.cc/300")
+	if err != nil {
+		return nil, err
+	}
+	b, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	return b, err
+}
 func Seed() error {
 	u := userFactory()
 	u.Email = "jtnguyen236@gmail.com"
@@ -44,10 +58,33 @@ func Seed() error {
 	}
 	for _, integration := range integations {
 		for i := 0; i < 5; i++ {
+			b, err := randomAvatar()
+			if err != nil {
+				return err
+			}
+			blobFilename := uuid.Must(uuid.NewV4()).String()
+			blob := &db.Blob{
+				FileName:      blobFilename,
+				MimeType:      "image/jpg",
+				FileSizeBytes: int64(len(b)),
+				EXTENSION:     "jpg",
+				File:          b,
+			}
+			err = blob.InsertG(boil.Infer())
+			if err != nil && !strings.Contains(err.Error(), ErrUnableToPopulate) {
+				return err
+			}
+
 			friend := friendFactory(integration.ID.Int64)
 			if i == 0 {
 				friend.IsTeacher = true
 			}
+			savedBlob, err := db.Blobs(db.BlobWhere.FileName.EQ(blobFilename)).OneG()
+			if err != nil {
+				return err
+			}
+			friend.AvatarBlobID = savedBlob.ID
+
 			err = friend.InsertG(boil.Infer())
 			if err != nil && !strings.Contains(err.Error(), ErrUnableToPopulate) {
 				return err

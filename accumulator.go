@@ -1,6 +1,7 @@
 package accumulator
 
 import (
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"accumulator/db"
 	"bytes"
 	"context"
@@ -85,10 +86,13 @@ func withUser(auther *Auther, next SecureHandlerFunc) HandlerFunc {
 		if err != nil {
 			jwtString = strings.TrimLeft(r.Header.Get("Authorization"), "Bearer ")
 		}
-		jwtString = cookie.Value
+		if cookie != nil {
+			jwtString = cookie.Value
+		}
 		if jwtString == "" {
 			return nil, http.StatusUnauthorized, errors.New("no jwt provided in cookie or header")
 		}
+
 		token, err := auther.TokenAuth.Decode(jwtString)
 		if err != nil {
 			return nil, http.StatusUnauthorized, err
@@ -177,11 +181,14 @@ func RunServer(ctx context.Context, conn *sqlx.DB, serverAddr string, jwtsecret 
 		// Authenticated routes
 		r.Group(func(r chi.Router) {
 			r.Post("/auth/sign_out", withError(c.signOutHandler))
-			r.Get("/auth/check", withError(c.checkHandler(auther)))
-			r.Post("/auth/set_password", withError(c.setPasswordHandler))
+			r.Get("/auth/check", withError(withUser(auther, c.checkHandler(auther))))
+			r.Post("/auth/set_password", withError(withUser(auther, c.setPasswordHandler())))
+			r.Get("/auth/jwt", withError(withUser(auther, c.userJWTHandler(auther))))
+
+			r.Get("/blobs/{blob_id}", c.blobHandler())
 
 			r.Get("/users/list", withError(withUser(auther, c.userListHandler())))
-			r.Post("/users/impersonate", withError(withUser(auther, c.userImpersonateHandler(auther))))
+			r.Post("/users/impersonate/{user_id}", withError(withUser(auther, c.userImpersonateHandler(auther))))
 
 			r.Get("/integrations/list", withError(withUser(auther, c.integrationsListHandler)))
 			r.Post("/integrations/add_username", withError(withUser(auther, c.integrationsAddUsernameHandler)))
@@ -201,7 +208,7 @@ func RunServer(ctx context.Context, conn *sqlx.DB, serverAddr string, jwtsecret 
 			// r.Get("/auth/forgot_password", withError(c.forgotPasswordHandler))
 			// r.Post("/auth/request_password_reset", withError(c.requestPasswordResetHandler))
 			// r.Post("/auth/reset_password", withError(c.resetPasswordHandler))
-			r.Get("/metrics", withError(c.metricsHandler))
+			r.Get("/metrics", promhttp.Handler().ServeHTTP)
 		})
 
 	})
@@ -275,8 +282,11 @@ func (c *API) integrationUpdateFriendsHandler(w http.ResponseWriter, r *http.Req
 	}
 	return &Response{true}, http.StatusOK, nil
 }
-func (c *API) checkHandler(auther *Auther) func(w http.ResponseWriter, r *http.Request) (interface{}, int, error) {
-	fn := func(w http.ResponseWriter, r *http.Request) (interface{}, int, error) {
+func (c *API) checkHandler(auther *Auther) func(w http.ResponseWriter, r *http.Request, u *db.User) (interface{}, int, error) {
+	fn := func(w http.ResponseWriter, r *http.Request, u *db.User) (interface{}, int, error) {
+		type Response struct {
+			Data *db.User `json:"data"`
+		}
 		cookie, err := r.Cookie("jwt")
 		if err != nil {
 			return nil, http.StatusUnauthorized, err
@@ -285,7 +295,8 @@ func (c *API) checkHandler(auther *Auther) func(w http.ResponseWriter, r *http.R
 		if err != nil {
 			return nil, http.StatusUnauthorized, err
 		}
-		return nil, 200, nil
+		u.PasswordHash = ""
+		return &Response{u}, 200, nil
 	}
 	return fn
 
@@ -362,10 +373,10 @@ func (c *API) integrationsAddUsernameHandler(w http.ResponseWriter, r *http.Requ
 	return record, http.StatusOK, nil
 }
 func (c *API) integrationsDeleteHandler(w http.ResponseWriter, r *http.Request, u *db.User) (interface{}, int, error) {
-	IntegrationIDStr := chi.URLParam(r, "integration_id")
 	type Response struct {
 		Data db.FriendSlice `json:"data"`
 	}
+	IntegrationIDStr := chi.URLParam(r, "integration_id")
 	IntegrationID, err := strconv.Atoi(IntegrationIDStr)
 	if err != nil {
 		return nil, http.StatusInternalServerError, err
@@ -459,11 +470,49 @@ func (c *API) signUpHandler(auther *Auther) func(w http.ResponseWriter, r *http.
 	}
 	return fn
 }
-func (c *API) setPasswordHandler(w http.ResponseWriter, r *http.Request) (interface{}, int, error) {
-	type Request struct {
-		Password string
+func (c *API) blobHandler() func(w http.ResponseWriter, r *http.Request) {
+	fn := func(w http.ResponseWriter, r *http.Request) {
+		blobIDStr := chi.URLParam(r, "blob_id")
+		blobID, err := strconv.Atoi(blobIDStr)
+		if err != nil {
+			http.Error(w, Err(err).JSON(), http.StatusBadRequest)
+			return
+		}
+		blob, err := db.FindBlobG(null.Int64From(int64(blobID)))
+		if err != nil {
+			http.Error(w, Err(err).JSON(), http.StatusBadRequest)
+			return
+		}
+
+		// tell the browser the returned content should be downloaded/inline
+		if blob.MimeType != "" && blob.MimeType != "unknown" {
+			w.Header().Add("Content-Type", blob.MimeType)
+		}
+		w.Header().Add("Content-Disposition", fmt.Sprintf("%s;filename=%s", "attachment", blob.FileName))
+		rdr := bytes.NewReader(blob.File)
+		http.ServeContent(w, r, blob.FileName, time.Now(), rdr)
+		return
 	}
-	return nil, 200, ErrNotImplemented
+	return fn
+}
+func (c *API) setPasswordHandler() func(w http.ResponseWriter, r *http.Request, u *db.User) (interface{}, int, error) {
+	fn := func(w http.ResponseWriter, r *http.Request, u *db.User) (interface{}, int, error) {
+		type Request struct {
+			Password string `json:"password"`
+		}
+		req := &Request{}
+		err := json.NewDecoder(r.Body).Decode(req)
+		if err != nil {
+			return nil, http.StatusBadRequest, err
+		}
+		u.PasswordHash = HashPassword(req.Password)
+		_, err = u.UpdateG(boil.Whitelist(db.UserColumns.PasswordHash))
+		if err != nil {
+			return nil, http.StatusInternalServerError, err
+		}
+		return nil, 200, nil
+	}
+	return fn
 }
 
 func (c *API) attendanceListHandler(w http.ResponseWriter, r *http.Request, u *db.User) (interface{}, int, error) {
@@ -621,6 +670,20 @@ func (c *API) metricsHandler(w http.ResponseWriter, r *http.Request) (interface{
 	return nil, 200, ErrNotImplemented
 }
 
+func (c *API) userJWTHandler(auther *Auther) func(w http.ResponseWriter, r *http.Request, u *db.User) (interface{}, int, error) {
+	fn := func(w http.ResponseWriter, r *http.Request, u *db.User) (interface{}, int, error) {
+		type Response struct {
+			Data string `json:"data"`
+		}
+		expiration := time.Now().Add(time.Duration(30) * time.Hour * 24)
+		jwt, err := auther.GenerateJWT(u.Email, strconv.Itoa(int(u.ID.Int64)), u.Role, expiration)
+		if err != nil {
+			return nil, http.StatusInternalServerError, err
+		}
+		return &Response{jwt}, http.StatusOK, nil
+	}
+	return fn
+}
 func (c *API) userListHandler() func(w http.ResponseWriter, r *http.Request, u *db.User) (interface{}, int, error) {
 	fn := func(w http.ResponseWriter, r *http.Request, u *db.User) (interface{}, int, error) {
 		if u.Role != roleAdmin {
@@ -637,28 +700,40 @@ func (c *API) userListHandler() func(w http.ResponseWriter, r *http.Request, u *
 	}
 	return fn
 }
+func (c *API) apiKeyHandler(auther *Auther) func(w http.ResponseWriter, r *http.Request, u *db.User) (interface{}, int, error) {
+	fn := func(w http.ResponseWriter, r *http.Request, u *db.User) (interface{}, int, error) {
+		type Response struct {
+			Token string `json:"token"`
+		}
+		expiration := time.Now().Add(time.Duration(30) * time.Hour * 24)
+		id := strconv.Itoa(int(u.ID.Int64))
+		token, err := auther.GenerateJWT(u.Email, id, u.Role, expiration)
+		if err != nil {
+			return nil, http.StatusBadRequest, err
+		}
+		return &Response{token}, http.StatusOK, nil
+	}
+	return fn
+}
 func (c *API) userImpersonateHandler(auther *Auther) func(w http.ResponseWriter, r *http.Request, u *db.User) (interface{}, int, error) {
 	fn := func(w http.ResponseWriter, r *http.Request, u *db.User) (interface{}, int, error) {
 		if u.Role != roleAdmin {
 			return nil, http.StatusForbidden, errors.New("unauthorized")
 		}
-		type Request struct {
-			UserID int64 `json:"user_id"`
-		}
 		type Response struct {
 			Token string `json:"token"`
 		}
-		req := &Request{}
-		err := json.NewDecoder(r.Body).Decode(req)
+		targetUserIDStr := chi.URLParam(r, "user_id")
+		targetUserID, err := strconv.Atoi(targetUserIDStr)
 		if err != nil {
-			return nil, http.StatusBadRequest, err
+			return nil, http.StatusInternalServerError, err
 		}
-		dbUser, err := db.FindUserG(null.Int64From(req.UserID))
+		targetUser, err := db.FindUserG(null.Int64From(int64(targetUserID)))
 		if err != nil {
 			return nil, http.StatusInternalServerError, err
 		}
 		expiration := time.Now().Add(time.Duration(30) * time.Hour * 24)
-		jwt, err := auther.GenerateJWT(dbUser.Email, strconv.Itoa(int(dbUser.ID.Int64)), dbUser.Role, expiration)
+		jwt, err := auther.GenerateJWT(targetUser.Email, strconv.Itoa(int(targetUser.ID.Int64)), targetUser.Role, expiration)
 		if err != nil {
 			return nil, http.StatusInternalServerError, err
 		}

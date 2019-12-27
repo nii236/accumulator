@@ -17,9 +17,11 @@ require (
 	github.com/gofrs/uuid v3.2.0+incompatible
 	github.com/jmoiron/sqlx v1.2.0
 	github.com/mattn/go-sqlite3 v1.9.0
+	github.com/nfnt/resize v0.0.0-20180221191011-83c6a9932646
 	github.com/nii236/vrchat-go v0.0.0-20191226031248-1092ef79c4cc
 	github.com/oklog/run v1.0.0
 	github.com/pkg/errors v0.8.1
+	github.com/prometheus/client_golang v1.1.0
 	github.com/spf13/cast v1.3.1 // indirect
 	github.com/volatiletech/inflect v0.0.0-20170731032912-e7201282ae8d // indirect
 	github.com/volatiletech/null v8.0.0+incompatible

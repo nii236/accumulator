@@ -73,7 +73,7 @@ const AddVRChatUsername = (props: AddProps) => {
 		</form>
 	)
 }
-interface Props extends RouteComponentProps {}
+interface Props extends RouteComponentProps { }
 interface integration {
 	id: number
 	username: string
@@ -146,13 +146,14 @@ export const Integrations = (props: Props) => {
 	}
 	const itemProps: BlockProps = {
 		display: "flex",
+
 	}
 	return (
 		<div>
 			{err && <Notification kind={KIND.negative}>{err}</Notification>}
 			<H1>Integrations</H1>
 
-			<FlexGrid flexDirection={"row"} flexGridColumnCount={4} flexGridColumnGap="scale100" flexGridRowGap="scale100">
+			<FlexGrid flexDirection={"row"} flexGridColumnCount={3} flexGridColumnGap="scale100" flexGridRowGap="scale100">
 				<FlexGridItem {...itemProps}>
 					<Card title={"Create new"}>
 						<StyledBody>
