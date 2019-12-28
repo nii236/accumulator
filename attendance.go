@@ -85,7 +85,11 @@ func trackAttendance(integrationID int64, authToken, apiKey string, log *zap.Sug
 				currentLocation = vrcfriend.Location
 			}
 		}
-		if currentLocation == "" || currentLocation == "offline" {
+		if currentLocation == "offline" {
+			log.Errorw("teacher is offline", "vrc_id", teacher.VrchatID, "display_name", teacher.VrchatDisplayName)
+			continue
+		}
+		if currentLocation == "" {
 			log.Errorw("could not get teacher location", "vrc_id", teacher.VrchatID, "display_name", teacher.VrchatDisplayName)
 			continue
 		}

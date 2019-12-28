@@ -1,20 +1,19 @@
 import * as React from "react"
-import { TeachersListURL, IntegrationsAddUsernameURL, IntegrationsAddAPIKeyURL, IntegrationsListURL } from "../constants/api"
+import { Modal, ModalHeader, ModalBody, ModalFooter, ModalButton } from "baseui/modal"
+import { IntegrationsAddUsernameURL, IntegrationsListURL } from "../constants/api"
 import { Error } from "../types/api"
 import { Notification, KIND } from "baseui/notification"
 import { useForm } from "react-hook-form"
 import { Redirect, RouteComponentProps } from "react-router-dom"
-import { H1, H2 } from "baseui/typography"
+import { H1, H2, Paragraph1 } from "baseui/typography"
 import { Button } from "baseui/button"
 import { Card, StyledBody, StyledAction } from "baseui/card"
 import { FlexGrid, FlexGridItem } from "baseui/flex-grid"
 import { Spinner } from "baseui/spinner"
-import { Block, BlockProps } from "baseui/block"
-import { Search } from "baseui/icon"
+import { BlockProps } from "baseui/block"
 import { Input } from "baseui/input"
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome"
 import { faUserAlt, faKey } from "@fortawesome/free-solid-svg-icons"
-import { Root } from "baseui/toast"
 interface AddProps {
 	fetchIntegrations: () => void
 	setThinking: (thinking: boolean) => void
@@ -73,7 +72,7 @@ const AddVRChatUsername = (props: AddProps) => {
 		</form>
 	)
 }
-interface Props extends RouteComponentProps { }
+interface Props extends RouteComponentProps {}
 interface integration {
 	id: number
 	username: string
@@ -85,6 +84,7 @@ export const Integrations = (props: Props) => {
 	const [err, setErr] = React.useState<string | null>(null)
 	const [redirect, setRedirect] = React.useState<string | null>(null)
 	const [thinking, setThinking] = React.useState<boolean>(false)
+	const [removeModalOpen, setRemoveModalOpen] = React.useState(false)
 	React.useEffect(() => {
 		fetchIntegrations()
 	}, [])
@@ -146,7 +146,6 @@ export const Integrations = (props: Props) => {
 	}
 	const itemProps: BlockProps = {
 		display: "flex",
-
 	}
 	return (
 		<div>
@@ -180,14 +179,31 @@ export const Integrations = (props: Props) => {
 									<StyledAction>
 										<Button
 											onClick={async () => {
-												await deleteIntegration(integration.id)
-												fetchIntegrations()
+												setRemoveModalOpen(true)
 											}}
 											overrides={{
 												BaseButton: { style: { width: "100%" } },
 											}}>
 											Remove
 										</Button>
+										<React.Fragment>
+											<Modal onClose={() => setRemoveModalOpen(false)} isOpen={removeModalOpen}>
+												<ModalHeader>Destroy integration</ModalHeader>
+												<ModalBody>
+													<Paragraph1>Warning! This is irreversible! You will lose the current tracked attendance for this integration!</Paragraph1>
+												</ModalBody>
+												<ModalFooter>
+													<ModalButton
+														onClick={async () => {
+															await deleteIntegration(integration.id)
+															fetchIntegrations()
+															setRemoveModalOpen(false)
+														}}>
+														Okay
+													</ModalButton>
+												</ModalFooter>
+											</Modal>
+										</React.Fragment>
 									</StyledAction>
 									<StyledAction>
 										<Button
