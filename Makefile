@@ -5,12 +5,12 @@ export $(shell sed 's/=.*//' .env)
 all: clean prepare deps build-server build-web copy
 prepare: 
 	mkdir deploy
-	cd deploy && mkdir bin config email migrations init web certs assets
+	cd deploy && mkdir bin config web
 build-server: 
 	go generate
 	go run cmd/accumulator/main.go -db-migrate
 	go generate
-	go build -o deploy/bin/accumulator cmd/server/main.go
+	go build -o deploy/bin/accumulator cmd/accumulator/main.go
 build-web:
 	cd web && npm install
 	cd web && npm run build
@@ -22,6 +22,6 @@ copy:
 deps:
 	go mod download
 deploy-prod-full:
-	rsync -avz ./deploy/ $(PROD_USER)@$(PROD_HOST):$(PROD_PATH)
+	rsync -avz -e 'ssh -p $(PROD_PORT)' ./deploy/ $(PROD_USER)@$(PROD_HOST):$(PROD_PATH)
 deploy-prod-frontend:
-	rsync -avz ./deploy/web/ $(PROD_USER)@$(PROD_HOST):$(PROD_PATH)/web
+	rsync -avz -e 'ssh -p $(PROD_PORT)' ./deploy/web/ $(PROD_USER)@$(PROD_HOST):$(PROD_PATH)/web
