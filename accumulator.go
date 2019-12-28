@@ -217,9 +217,6 @@ func RunServer(ctx context.Context, conn *sqlx.DB, serverAddr string, jwtsecret 
 		r.Group(func(r chi.Router) {
 			r.Post("/auth/sign_in", withError(c.signInHandler(auther)))
 			r.Post("/auth/sign_up", withError(c.signUpHandler(auther)))
-			// r.Get("/auth/forgot_password", withError(c.forgotPasswordHandler))
-			// r.Post("/auth/request_password_reset", withError(c.requestPasswordResetHandler))
-			// r.Post("/auth/reset_password", withError(c.resetPasswordHandler))
 			r.Get("/metrics", promhttp.Handler().ServeHTTP)
 		})
 
@@ -288,7 +285,7 @@ func (c *API) integrationUpdateFriendsHandler(w http.ResponseWriter, r *http.Req
 	if err != nil {
 		return nil, http.StatusForbidden, err
 	}
-	err = refreshFriendCache(IntegrationID)
+	err = refreshFriendCache(IntegrationID, true)
 	if err != nil {
 		return nil, http.StatusInternalServerError, err
 	}

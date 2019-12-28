@@ -14,7 +14,7 @@ import (
 )
 
 // refreshFriendCache in the database
-func refreshFriendCache(IntegrationID int) error {
+func refreshFriendCache(IntegrationID int, updateBlob bool) error {
 	integration, err := db.FindIntegrationG(null.Int64From(int64(IntegrationID)))
 	if err != nil {
 		return err
@@ -34,41 +34,47 @@ func refreshFriendCache(IntegrationID int) error {
 	}
 	vrcResult = append(vrcResult, vrcResult2...)
 	for _, vrcFriend := range vrcResult {
-		resp, err := http.Get(vrcFriend.CurrentAvatarThumbnailImageURL)
-		if err != nil {
-			fmt.Println(err)
-			continue
-		}
-		b, err := ioutil.ReadAll(resp.Body)
-		if err != nil {
-			fmt.Println(err)
-			continue
-		}
-		blobFilename := uuid.Must(uuid.NewV4()).String()
-		blob := &db.Blob{
-			FileName:      blobFilename,
-			MimeType:      "image/jpg",
-			FileSizeBytes: int64(len(b)),
-			EXTENSION:     "jpg",
-			File:          b,
-		}
-		err = blob.InsertG(boil.Infer())
-		if err != nil && !strings.Contains(err.Error(), ErrUnableToPopulate) {
-			return err
-		}
-		savedBlob, err := db.Blobs(db.BlobWhere.FileName.EQ(blobFilename)).OneG()
-		if err != nil {
-			return err
+		newBlobFilename := uuid.Must(uuid.NewV4()).String()
+		if updateBlob {
+			resp, err := http.Get(vrcFriend.CurrentAvatarThumbnailImageURL)
+			if err != nil {
+				fmt.Println(err)
+				continue
+			}
+			b, err := ioutil.ReadAll(resp.Body)
+			if err != nil {
+				fmt.Println(err)
+				continue
+			}
+
+			blob := &db.Blob{
+				FileName:      newBlobFilename,
+				MimeType:      "image/jpg",
+				FileSizeBytes: int64(len(b)),
+				EXTENSION:     "jpg",
+				File:          b,
+			}
+			err = blob.InsertG(boil.Infer())
+			if err != nil && !strings.Contains(err.Error(), ErrUnableToPopulate) {
+				return err
+			}
+
 		}
 		record := &db.Friend{
 			IntegrationID:                 int64(IntegrationID),
-			AvatarBlobID:                  savedBlob.ID,
 			VrchatID:                      vrcFriend.ID,
 			VrchatUsername:                vrcFriend.Username,
 			VrchatDisplayName:             vrcFriend.DisplayName,
 			VrchatAvatarImageURL:          vrcFriend.CurrentAvatarImageURL,
 			VrchatAvatarThumbnailImageURL: vrcFriend.CurrentAvatarThumbnailImageURL,
 			VrchatLocation:                vrcFriend.Location,
+		}
+		if updateBlob {
+			savedBlob, err := db.Blobs(db.BlobWhere.FileName.EQ(newBlobFilename)).OneG()
+			if err != nil {
+				return err
+			}
+			record.AvatarBlobID = savedBlob.ID
 		}
 		existing, err := db.Friends(
 			db.FriendWhere.VrchatID.EQ(vrcFriend.ID),
@@ -83,11 +89,15 @@ func refreshFriendCache(IntegrationID int) error {
 		}
 		updateMany := db.M{
 			db.FriendColumns.VrchatID:                      vrcFriend.ID,
+			db.FriendColumns.AvatarBlobID:                  vrcFriend,
 			db.FriendColumns.VrchatUsername:                vrcFriend.Username,
 			db.FriendColumns.VrchatDisplayName:             vrcFriend.DisplayName,
 			db.FriendColumns.VrchatAvatarImageURL:          vrcFriend.CurrentAvatarImageURL,
 			db.FriendColumns.VrchatAvatarThumbnailImageURL: vrcFriend.CurrentAvatarThumbnailImageURL,
 			db.FriendColumns.VrchatLocation:                vrcFriend.Location,
+		}
+		if updateBlob {
+			updateMany[db.FriendColumns.AvatarBlobID] = newBlobFilename
 		}
 		_, err = existing.UpdateAllG(updateMany)
 		if err != nil {

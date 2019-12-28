@@ -54,7 +54,7 @@ func RunAttendanceTracker(ctx context.Context, stepMinutes int, log *zap.Sugared
 
 // trackAttendance in the database
 func trackAttendance(integrationID int64, authToken, apiKey string, log *zap.SugaredLogger) error {
-	err := refreshFriendCache(int(integrationID))
+	err := refreshFriendCache(int(integrationID), false)
 	if err != nil {
 		return err
 	}
