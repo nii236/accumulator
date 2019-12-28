@@ -23,5 +23,6 @@ deps:
 	go mod download
 deploy-prod-full:
 	rsync -avz -e 'ssh -p $(PROD_PORT)' ./deploy/ $(PROD_USER)@$(PROD_HOST):$(PROD_PATH)
+	ssh -p $(PROD_PORT) $(PROD_USER)@$(PROD_HOST) systemctl restart accumulator 
 deploy-prod-frontend:
 	rsync -avz -e 'ssh -p $(PROD_PORT)' ./deploy/web/ $(PROD_USER)@$(PROD_HOST):$(PROD_PATH)/web
