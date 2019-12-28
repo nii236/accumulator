@@ -6,7 +6,11 @@ Project Accumulator will track attendance rates per minute per student for VRNih
 
 ```bash
 rm accumulator.db
-./db-prepare.sh
+# Embed migration bindata (ignore errors)
+go generate
+go run main.go -db-migrate
+# Generate SQLboiler
+go generate
 go run main.go -db-seed
 ```
 

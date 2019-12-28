@@ -1,3 +1,5 @@
+.env
 accumulator.db
 dist
 node_modules
+deploy

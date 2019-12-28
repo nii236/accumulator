@@ -23,7 +23,10 @@ func connect() (*sqlx.DB, error) {
 func main() {
 
 	jwtSecret := flag.String("jwt-secret", "contractible-roasted-mollusk", "jwt secret")
-	seed := flag.Bool("db-seed", false, "Seed fake data")
+	dbversion := flag.Bool("db-version", false, "Get the DB version")
+	dbseed := flag.Bool("db-seed", false, "Seed fake data")
+	dbmigrate := flag.Bool("db-migrate", false, "Migrate DB")
+	dbdrop := flag.Bool("db-drop", false, "Drop DB")
 	stepMinutes := flag.Int("step-minutes", 5, "Step time between scrapes")
 	rootPath := flag.String("root-path", "./web/dist", "Path of the webapp")
 	serverAddr := flag.String("server-addr", ":8081", "Address to host on")
@@ -36,8 +39,35 @@ func main() {
 		return
 	}
 	boil.SetDB(conn)
-
-	if *seed {
+	if *dbversion {
+		fmt.Println("Getting DB version...")
+		v, d, err := accumulator.Version(conn)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		fmt.Printf("Version: %d, Dirty: %v\n", v, d)
+		return
+	}
+	if *dbmigrate {
+		fmt.Println("Migrating accumulator system...")
+		err = accumulator.Migrate(conn)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		return
+	}
+	if *dbdrop {
+		fmt.Println("Dropping accumulator system...")
+		err = accumulator.Drop(conn)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		return
+	}
+	if *dbseed {
 		fmt.Println("Seeding accumulator system...")
 		err = accumulator.Seed()
 		if err != nil {

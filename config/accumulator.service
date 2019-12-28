@@ -1,0 +1,13 @@
+[Unit]
+Description=Accumulator
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/var/www/accumulator/
+ExecStart=/var/www/accumulator/bin/accumulator
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
