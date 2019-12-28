@@ -20,6 +20,7 @@ require (
 	github.com/golang-migrate/migrate/v4 v4.7.1
 	github.com/jmoiron/sqlx v1.2.0
 	github.com/mattn/go-sqlite3 v1.10.0
+	github.com/minio/sio v0.2.0
 	github.com/nfnt/resize v0.0.0-20180221191011-83c6a9932646
 	github.com/nii236/vrchat-go v0.0.0-20191226031248-1092ef79c4cc
 	github.com/oklog/run v1.0.0

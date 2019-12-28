@@ -28,8 +28,9 @@ CREATE TABLE integrations (
     user_id INTEGER NOT NULL REFERENCES users(id),
     username VARCHAR NOT NULL UNIQUE,
     api_key VARCHAR NOT NULL,
-    auth_token VARCHAR NOT NULL,
-    
+    auth_token BLOB NOT NULL,
+    auth_token_nonce BLOB NOT NULL,
+
     archived BOOLEAN NOT NULL DEFAULT 0,
     archived_at DATETIME,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,

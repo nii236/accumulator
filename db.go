@@ -188,8 +188,9 @@ func integrationFactory(userID int64) *db.Integration {
 	data := &db.Integration{
 		UserID:    userID,
 		Username:  faker.Email(),
-		APIKey:    faker.UUIDDigit(),
-		AuthToken: faker.UUIDDigit(),
+		APIKey:    []byte{0},
+		AuthToken: []byte{0},
+		Nonce:     []byte{0},
 	}
 
 	return data

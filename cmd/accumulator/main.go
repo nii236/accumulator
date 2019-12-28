@@ -21,12 +21,9 @@ func connect() (*sqlx.DB, error) {
 	return conn, nil
 }
 func main() {
-
+	masterKey := flag.String("master-key", "parliamentary-rutherfordium-goldeneye", "master key for encryption at rest")
 	jwtSecret := flag.String("jwt-secret", "contractible-roasted-mollusk", "jwt secret")
-	dbversion := flag.Bool("db-version", false, "Get the DB version")
 	dbseed := flag.Bool("db-seed", false, "Seed fake data")
-	dbmigrate := flag.Bool("db-migrate", false, "Migrate DB")
-	dbdrop := flag.Bool("db-drop", false, "Drop DB")
 	stepMinutes := flag.Int("step-minutes", 5, "Step time between scrapes")
 	rootPath := flag.String("root-path", "./web/dist", "Path of the webapp")
 	serverAddr := flag.String("server-addr", ":8081", "Address to host on")
@@ -39,34 +36,7 @@ func main() {
 		return
 	}
 	boil.SetDB(conn)
-	if *dbversion {
-		fmt.Println("Getting DB version...")
-		v, d, err := accumulator.Version(conn)
-		if err != nil {
-			fmt.Println(err)
-			return
-		}
-		fmt.Printf("Version: %d, Dirty: %v\n", v, d)
-		return
-	}
-	if *dbmigrate {
-		fmt.Println("Migrating accumulator system...")
-		err = accumulator.Migrate(conn)
-		if err != nil {
-			fmt.Println(err)
-			return
-		}
-		return
-	}
-	if *dbdrop {
-		fmt.Println("Dropping accumulator system...")
-		err = accumulator.Drop(conn)
-		if err != nil {
-			fmt.Println(err)
-			return
-		}
-		return
-	}
+
 	if *dbseed {
 		fmt.Println("Seeding accumulator system...")
 		err = accumulator.Seed()
@@ -76,11 +46,16 @@ func main() {
 		}
 		return
 	}
+
 	fmt.Println("Booting up accumulator system...")
 	g := &run.Group{}
 	ctx, cancel := context.WithCancel(context.Background())
 	g.Add(func() error {
-		return accumulator.RunServer(ctx, conn, *serverAddr, *jwtSecret, accumulator.NewLogToStdOut("server", "0.0.1", false))
+		d, err := accumulator.NewDarer(*masterKey)
+		if err != nil {
+			return err
+		}
+		return accumulator.RunServer(ctx, conn, *serverAddr, *jwtSecret, d, accumulator.NewLogToStdOut("server", "0.0.1", false))
 	}, func(err error) {
 		fmt.Println(err)
 		cancel()
