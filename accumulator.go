@@ -167,7 +167,7 @@ const caddyfileTemplate = `
 `
 
 // RunServer the service
-func RunServer(ctx context.Context, conn *sqlx.DB, serverAddr string, jwtsecret string, log *zap.SugaredLogger) error {
+func RunServer(ctx context.Context, conn *sqlx.DB, serverAddr string, jwtsecret string, d *Darer, log *zap.SugaredLogger) error {
 	sessionManager = scs.New()
 	sessionManager.Lifetime = 24 * time.Hour
 	log.Infow("start api", "svc-addr", serverAddr)
@@ -203,7 +203,7 @@ func RunServer(ctx context.Context, conn *sqlx.DB, serverAddr string, jwtsecret 
 			r.Post("/users/impersonate/{user_id}", withError(withUser(auther, c.userImpersonateHandler(auther))))
 
 			r.Get("/integrations/list", withError(withUser(auther, c.integrationsListHandler)))
-			r.Post("/integrations/add_username", withError(withUser(auther, c.integrationsAddUsernameHandler)))
+			r.Post("/integrations/add_username", withError(withUser(auther, c.integrationsAddUsernameHandler(d))))
 			r.Post("/integrations/{integration_id}/update_friends", withError(withUser(auther, c.integrationUpdateFriendsHandler)))
 			r.Post("/integrations/{integration_id}/delete", withError(withUser(auther, c.integrationsDeleteHandler)))
 			r.Get("/integrations/{integration_id}/attendance/{teacher_id}/list", withError(withUser(auther, c.attendanceListHandler)))
@@ -324,62 +324,66 @@ func (c *API) integrationsListHandler(w http.ResponseWriter, r *http.Request, u 
 	}
 	return &Response{result}, 200, nil
 }
-func (c *API) integrationsAddUsernameHandler(w http.ResponseWriter, r *http.Request, u *db.User) (interface{}, int, error) {
-	type Request struct {
-		Username string `json:"username"`
-		Password string `json:"password"`
-	}
-	type Response struct {
-		Data string `json:"data"`
-	}
+func (c *API) integrationsAddUsernameHandler(d *Darer) func(w http.ResponseWriter, r *http.Request, u *db.User) (interface{}, int, error) {
+	fn := func(w http.ResponseWriter, r *http.Request, u *db.User) (interface{}, int, error) {
+		type Request struct {
+			Username string `json:"username"`
+			Password string `json:"password"`
+		}
+		type Response struct {
+			Data string `json:"data"`
+		}
 
-	req := &Request{}
-	err := json.NewDecoder(r.Body).Decode(req)
-	if err != nil {
-		return nil, http.StatusBadRequest, err
-	}
+		req := &Request{}
+		err := json.NewDecoder(r.Body).Decode(req)
+		if err != nil {
+			return nil, http.StatusBadRequest, err
+		}
 
-	_, apiKey, authToken, err := vrc.Token(vrc.ReleaseAPIURL, req.Username, req.Password)
-	if err != nil {
-		return nil, http.StatusBadRequest, err
-	}
-	record := &db.Integration{
-		UserID:    u.ID.Int64,
-		Username:  req.Username,
-		APIKey:    apiKey,
-		AuthToken: authToken,
-	}
-	exists, err := db.Integrations(db.IntegrationWhere.Username.EQ(req.Username)).ExistsG()
-	if err != nil {
-		return nil, http.StatusInternalServerError, err
-	}
-	if exists {
-		c.log.Infow("integration email exists, updating...", "email", req.Username)
-		existingRecord, err := db.Integrations(db.IntegrationWhere.Username.EQ(req.Username)).OneG()
+		_, apiKey, authToken, err := vrc.Token(vrc.ReleaseAPIURL, req.Username, req.Password)
+		if err != nil {
+			return nil, http.StatusBadRequest, err
+		}
+		record := &db.Integration{
+			UserID:    u.ID.Int64,
+			Username:  req.Username,
+			APIKey:    apiKey,
+			AuthToken: authToken,
+		}
+
+		exists, err := db.Integrations(db.IntegrationWhere.Username.EQ(req.Username)).ExistsG()
 		if err != nil {
 			return nil, http.StatusInternalServerError, err
 		}
-		existingRecord.UserID = u.ID.Int64
-		existingRecord.APIKey = apiKey
-		existingRecord.AuthToken = authToken
+		if exists {
+			c.log.Infow("integration email exists, updating...", "email", req.Username)
+			existingRecord, err := db.Integrations(db.IntegrationWhere.Username.EQ(req.Username)).OneG()
+			if err != nil {
+				return nil, http.StatusInternalServerError, err
+			}
+			existingRecord.UserID = u.ID.Int64
+			existingRecord.APIKey = apiKey
+			existingRecord.AuthToken = authToken
 
-		_, err = existingRecord.UpdateG(boil.Whitelist(
-			db.IntegrationColumns.UserID,
-			db.IntegrationColumns.Username,
-			db.IntegrationColumns.APIKey,
-			db.IntegrationColumns.AuthToken,
-		))
-		if err != nil {
+			_, err = existingRecord.UpdateG(boil.Whitelist(
+				db.IntegrationColumns.UserID,
+				db.IntegrationColumns.Username,
+				db.IntegrationColumns.APIKey,
+				db.IntegrationColumns.AuthToken,
+			))
+			if err != nil {
+				return nil, http.StatusInternalServerError, err
+			}
+			return record, http.StatusOK, nil
+		}
+		c.log.Infow("integration email does not exist, creating...", "email", req.Username)
+		err = record.InsertG(boil.Infer())
+		if err != nil && !strings.Contains(err.Error(), ErrUnableToPopulate) {
 			return nil, http.StatusInternalServerError, err
 		}
 		return record, http.StatusOK, nil
 	}
-	c.log.Infow("integration email does not exist, creating...", "email", req.Username)
-	err = record.InsertG(boil.Infer())
-	if err != nil && !strings.Contains(err.Error(), ErrUnableToPopulate) {
-		return nil, http.StatusInternalServerError, err
-	}
-	return record, http.StatusOK, nil
+	return fn
 }
 func (c *API) integrationsDeleteHandler(w http.ResponseWriter, r *http.Request, u *db.User) (interface{}, int, error) {
 	type Response struct {

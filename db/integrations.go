@@ -22,64 +22,69 @@ import (
 
 // Integration is an object representing the database table.
 type Integration struct {
-	ID         null.Int64 `boil:"id" json:"id,omitempty" toml:"id" yaml:"id,omitempty"`
-	UserID     int64      `boil:"user_id" json:"user_id" toml:"user_id" yaml:"user_id"`
-	Username   string     `boil:"username" json:"username" toml:"username" yaml:"username"`
-	APIKey     string     `boil:"api_key" json:"api_key" toml:"api_key" yaml:"api_key"`
-	AuthToken  string     `boil:"auth_token" json:"auth_token" toml:"auth_token" yaml:"auth_token"`
-	Archived   bool       `boil:"archived" json:"archived" toml:"archived" yaml:"archived"`
-	ArchivedAt null.Time  `boil:"archived_at" json:"archived_at,omitempty" toml:"archived_at" yaml:"archived_at,omitempty"`
-	UpdatedAt  time.Time  `boil:"updated_at" json:"updated_at" toml:"updated_at" yaml:"updated_at"`
-	CreatedAt  time.Time  `boil:"created_at" json:"created_at" toml:"created_at" yaml:"created_at"`
+	ID             null.Int64 `boil:"id" json:"id,omitempty" toml:"id" yaml:"id,omitempty"`
+	UserID         int64      `boil:"user_id" json:"user_id" toml:"user_id" yaml:"user_id"`
+	Username       string     `boil:"username" json:"username" toml:"username" yaml:"username"`
+	APIKey         string     `boil:"api_key" json:"api_key" toml:"api_key" yaml:"api_key"`
+	AuthToken      []byte     `boil:"auth_token" json:"auth_token" toml:"auth_token" yaml:"auth_token"`
+	AuthTokenNonce []byte     `boil:"auth_token_nonce" json:"auth_token_nonce" toml:"auth_token_nonce" yaml:"auth_token_nonce"`
+	Archived       bool       `boil:"archived" json:"archived" toml:"archived" yaml:"archived"`
+	ArchivedAt     null.Time  `boil:"archived_at" json:"archived_at,omitempty" toml:"archived_at" yaml:"archived_at,omitempty"`
+	UpdatedAt      time.Time  `boil:"updated_at" json:"updated_at" toml:"updated_at" yaml:"updated_at"`
+	CreatedAt      time.Time  `boil:"created_at" json:"created_at" toml:"created_at" yaml:"created_at"`
 
 	R *integrationR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L integrationL  `boil:"-" json:"-" toml:"-" yaml:"-"`
 }
 
 var IntegrationColumns = struct {
-	ID         string
-	UserID     string
-	Username   string
-	APIKey     string
-	AuthToken  string
-	Archived   string
-	ArchivedAt string
-	UpdatedAt  string
-	CreatedAt  string
+	ID             string
+	UserID         string
+	Username       string
+	APIKey         string
+	AuthToken      string
+	AuthTokenNonce string
+	Archived       string
+	ArchivedAt     string
+	UpdatedAt      string
+	CreatedAt      string
 }{
-	ID:         "id",
-	UserID:     "user_id",
-	Username:   "username",
-	APIKey:     "api_key",
-	AuthToken:  "auth_token",
-	Archived:   "archived",
-	ArchivedAt: "archived_at",
-	UpdatedAt:  "updated_at",
-	CreatedAt:  "created_at",
+	ID:             "id",
+	UserID:         "user_id",
+	Username:       "username",
+	APIKey:         "api_key",
+	AuthToken:      "auth_token",
+	AuthTokenNonce: "auth_token_nonce",
+	Archived:       "archived",
+	ArchivedAt:     "archived_at",
+	UpdatedAt:      "updated_at",
+	CreatedAt:      "created_at",
 }
 
 // Generated where
 
 var IntegrationWhere = struct {
-	ID         whereHelpernull_Int64
-	UserID     whereHelperint64
-	Username   whereHelperstring
-	APIKey     whereHelperstring
-	AuthToken  whereHelperstring
-	Archived   whereHelperbool
-	ArchivedAt whereHelpernull_Time
-	UpdatedAt  whereHelpertime_Time
-	CreatedAt  whereHelpertime_Time
+	ID             whereHelpernull_Int64
+	UserID         whereHelperint64
+	Username       whereHelperstring
+	APIKey         whereHelperstring
+	AuthToken      whereHelper__byte
+	AuthTokenNonce whereHelper__byte
+	Archived       whereHelperbool
+	ArchivedAt     whereHelpernull_Time
+	UpdatedAt      whereHelpertime_Time
+	CreatedAt      whereHelpertime_Time
 }{
-	ID:         whereHelpernull_Int64{field: "\"integrations\".\"id\""},
-	UserID:     whereHelperint64{field: "\"integrations\".\"user_id\""},
-	Username:   whereHelperstring{field: "\"integrations\".\"username\""},
-	APIKey:     whereHelperstring{field: "\"integrations\".\"api_key\""},
-	AuthToken:  whereHelperstring{field: "\"integrations\".\"auth_token\""},
-	Archived:   whereHelperbool{field: "\"integrations\".\"archived\""},
-	ArchivedAt: whereHelpernull_Time{field: "\"integrations\".\"archived_at\""},
-	UpdatedAt:  whereHelpertime_Time{field: "\"integrations\".\"updated_at\""},
-	CreatedAt:  whereHelpertime_Time{field: "\"integrations\".\"created_at\""},
+	ID:             whereHelpernull_Int64{field: "\"integrations\".\"id\""},
+	UserID:         whereHelperint64{field: "\"integrations\".\"user_id\""},
+	Username:       whereHelperstring{field: "\"integrations\".\"username\""},
+	APIKey:         whereHelperstring{field: "\"integrations\".\"api_key\""},
+	AuthToken:      whereHelper__byte{field: "\"integrations\".\"auth_token\""},
+	AuthTokenNonce: whereHelper__byte{field: "\"integrations\".\"auth_token_nonce\""},
+	Archived:       whereHelperbool{field: "\"integrations\".\"archived\""},
+	ArchivedAt:     whereHelpernull_Time{field: "\"integrations\".\"archived_at\""},
+	UpdatedAt:      whereHelpertime_Time{field: "\"integrations\".\"updated_at\""},
+	CreatedAt:      whereHelpertime_Time{field: "\"integrations\".\"created_at\""},
 }
 
 // IntegrationRels is where relationship names are stored.
@@ -109,8 +114,8 @@ func (*integrationR) NewStruct() *integrationR {
 type integrationL struct{}
 
 var (
-	integrationAllColumns            = []string{"id", "user_id", "username", "api_key", "auth_token", "archived", "archived_at", "updated_at", "created_at"}
-	integrationColumnsWithoutDefault = []string{"user_id", "username", "api_key", "auth_token", "archived_at"}
+	integrationAllColumns            = []string{"id", "user_id", "username", "api_key", "auth_token", "auth_token_nonce", "archived", "archived_at", "updated_at", "created_at"}
+	integrationColumnsWithoutDefault = []string{"user_id", "username", "api_key", "auth_token", "auth_token_nonce", "archived_at"}
 	integrationColumnsWithDefault    = []string{"id", "archived", "updated_at", "created_at"}
 	integrationPrimaryKeyColumns     = []string{"id"}
 )
