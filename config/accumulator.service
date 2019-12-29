@@ -6,7 +6,8 @@ After=network.target
 Type=simple
 User=root
 WorkingDirectory=/var/www/accumulator/
-ExecStart=/var/www/accumulator/bin/accumulator
+EnvironmentFile=/var/www/accumulator/.env
+ExecStart=/var/www/accumulator/bin/accumulator -jwt-secret ${JWT_SECRET} -root-path /var/www/accumulator/web
 Restart=always
 
 [Install]
