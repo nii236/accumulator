@@ -15,7 +15,7 @@ import { H2 } from "baseui/typography"
 export interface friend {
 	id: number
 	is_teacher: boolean
-	avatar_blob_id: number
+	avatar_blob_filename: string
 	vrchat_id: string
 	vrchat_username: string
 	vrchat_display_name: string
@@ -168,7 +168,7 @@ const FriendItemContainer = (props: FriendItemContainerProps) => {
 			promote={promote}
 			fetch={fetch}
 			redirectToAttendance={redirectToAttendance}
-			headerImageURL={`/api/blobs/${props.friend.avatar_blob_id}`}
+			headerImageURL={`/api/blobs/${props.friend.avatar_blob_filename}`}
 			title={props.friend.vrchat_display_name}
 		/>
 	)

@@ -15,7 +15,7 @@ CREATE TABLE blobs (
 
 CREATE TABLE users (
     id INTEGER PRIMARY KEY,
-    email VARCHAR NOT NULL,
+    email VARCHAR UNIQUE NOT NULL,
     password_hash VARCHAR NOT NULL,
     role VARCHAR NOT NULL DEFAULT "user",
     archived BOOLEAN NOT NULL DEFAULT 0,
@@ -46,7 +46,7 @@ CREATE TABLE friends (
     vrchat_avatar_image_url VARCHAR NOT NULL,
     vrchat_avatar_thumbnail_image_url VARCHAR NOT NULL,
     vrchat_location VARCHAR NOT NULL,
-    avatar_blob_id INT REFERENCES blobs(id),
+    avatar_blob_filename VARCHAR,
 
     archived BOOLEAN NOT NULL DEFAULT 0,
     archived_at DATETIME,

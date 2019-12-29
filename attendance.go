@@ -14,7 +14,7 @@ import (
 )
 
 // RunAttendanceTracker starts the tracking service
-func RunAttendanceTracker(ctx context.Context, stepMinutes int, log *zap.SugaredLogger) error {
+func RunAttendanceTracker(ctx context.Context, d *Darer, stepMinutes int, log *zap.SugaredLogger) error {
 	log.Infow("start attendance tracker")
 	log.Info("running tracker")
 	integrations, err := db.Integrations().AllG()
@@ -26,7 +26,7 @@ func RunAttendanceTracker(ctx context.Context, stepMinutes int, log *zap.Sugared
 			fmt.Println("invalid integration ID, this should never happen")
 			continue
 		}
-		err := trackAttendance(integration.ID.Int64, integration.AuthToken, integration.APIKey, log)
+		err := trackAttendance(d, integration.ID.Int64, integration.AuthToken, integration.AuthTokenNonce, integration.APIKey, log)
 		if err != nil {
 			log.Errorw(err.Error(), "integration_id", integration.ID.Int64, "integration_username", integration.Username)
 			continue
@@ -42,7 +42,7 @@ func RunAttendanceTracker(ctx context.Context, stepMinutes int, log *zap.Sugared
 					fmt.Println("invalid integration ID, this should never happen")
 					continue
 				}
-				err := trackAttendance(integration.ID.Int64, integration.AuthToken, integration.APIKey, log)
+				err := trackAttendance(d, integration.ID.Int64, integration.AuthToken, integration.AuthTokenNonce, integration.APIKey, log)
 				if err != nil {
 					log.Errorw(err.Error(), "integration_id", integration.ID.Int64)
 					continue
@@ -53,12 +53,17 @@ func RunAttendanceTracker(ctx context.Context, stepMinutes int, log *zap.Sugared
 }
 
 // trackAttendance in the database
-func trackAttendance(integrationID int64, authToken, apiKey string, log *zap.SugaredLogger) error {
-	err := refreshFriendCache(int(integrationID), false)
+func trackAttendance(d *Darer, integrationID int64, encryptedAuthToken []byte, nonce []byte, apiKey string, log *zap.SugaredLogger) error {
+	err := refreshFriendCache(d, int(integrationID), false)
+	if err != nil {
+		return fmt.Errorf("could not refresh friend cache: %v", err)
+	}
+
+	decryptedAuthToken, err := d.decrypt(encryptedAuthToken, nonce)
 	if err != nil {
 		return err
 	}
-	vrcClient, err := vrc.NewClient(vrc.ReleaseAPIURL, authToken, apiKey)
+	vrcClient, err := vrc.NewClient(vrc.ReleaseAPIURL, string(decryptedAuthToken), apiKey)
 	if err != nil {
 		return err
 	}
@@ -111,7 +116,7 @@ func trackAttendance(integrationID int64, authToken, apiKey string, log *zap.Sug
 					}
 					err = record.InsertG(boil.Infer())
 					if err != nil && !strings.Contains(err.Error(), ErrUnableToPopulate) {
-						return err
+						return fmt.Errorf("insert attendance record: %v", err)
 					}
 				}
 			}

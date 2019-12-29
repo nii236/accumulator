@@ -204,7 +204,7 @@ func RunServer(ctx context.Context, conn *sqlx.DB, serverAddr string, jwtsecret 
 
 			r.Get("/integrations/list", withError(withUser(auther, c.integrationsListHandler)))
 			r.Post("/integrations/add_username", withError(withUser(auther, c.integrationsAddUsernameHandler(d))))
-			r.Post("/integrations/{integration_id}/update_friends", withError(withUser(auther, c.integrationUpdateFriendsHandler)))
+			r.Post("/integrations/{integration_id}/update_friends", withError(withUser(auther, c.integrationUpdateFriendsHandler(d))))
 			r.Post("/integrations/{integration_id}/delete", withError(withUser(auther, c.integrationsDeleteHandler)))
 			r.Get("/integrations/{integration_id}/attendance/{teacher_id}/list", withError(withUser(auther, c.attendanceListHandler)))
 			r.Get("/integrations/{integration_id}/friends/list", withError(withUser(auther, c.friendListHandler)))
@@ -272,24 +272,27 @@ func isIntegrationOwner(IntegrationID int, userID null.Int64) error {
 	return nil
 }
 
-func (c *API) integrationUpdateFriendsHandler(w http.ResponseWriter, r *http.Request, u *db.User) (interface{}, int, error) {
-	IntegrationIDStr := chi.URLParam(r, "integration_id")
-	type Response struct {
-		Success bool `json:"success,omitempty"`
+func (c *API) integrationUpdateFriendsHandler(d *Darer) func(w http.ResponseWriter, r *http.Request, u *db.User) (interface{}, int, error) {
+	fn := func(w http.ResponseWriter, r *http.Request, u *db.User) (interface{}, int, error) {
+		IntegrationIDStr := chi.URLParam(r, "integration_id")
+		type Response struct {
+			Success bool `json:"success,omitempty"`
+		}
+		IntegrationID, err := strconv.Atoi(IntegrationIDStr)
+		if err != nil {
+			return nil, http.StatusInternalServerError, err
+		}
+		err = isIntegrationOwner(IntegrationID, u.ID)
+		if err != nil {
+			return nil, http.StatusForbidden, err
+		}
+		err = refreshFriendCache(d, IntegrationID, true)
+		if err != nil {
+			return nil, http.StatusInternalServerError, err
+		}
+		return &Response{true}, http.StatusOK, nil
 	}
-	IntegrationID, err := strconv.Atoi(IntegrationIDStr)
-	if err != nil {
-		return nil, http.StatusInternalServerError, err
-	}
-	err = isIntegrationOwner(IntegrationID, u.ID)
-	if err != nil {
-		return nil, http.StatusForbidden, err
-	}
-	err = refreshFriendCache(IntegrationID, true)
-	if err != nil {
-		return nil, http.StatusInternalServerError, err
-	}
-	return &Response{true}, http.StatusOK, nil
+	return fn
 }
 func (c *API) checkHandler(auther *Auther) func(w http.ResponseWriter, r *http.Request, u *db.User) (interface{}, int, error) {
 	fn := func(w http.ResponseWriter, r *http.Request, u *db.User) (interface{}, int, error) {
@@ -344,11 +347,18 @@ func (c *API) integrationsAddUsernameHandler(d *Darer) func(w http.ResponseWrite
 		if err != nil {
 			return nil, http.StatusBadRequest, err
 		}
+
+		encryptedAuthToken, nonce, err := d.encrypt([]byte(authToken))
+		if err != nil {
+			return nil, http.StatusBadRequest, err
+		}
+
 		record := &db.Integration{
-			UserID:    u.ID.Int64,
-			Username:  req.Username,
-			APIKey:    apiKey,
-			AuthToken: authToken,
+			UserID:         u.ID.Int64,
+			Username:       req.Username,
+			APIKey:         apiKey,
+			AuthToken:      encryptedAuthToken,
+			AuthTokenNonce: nonce,
 		}
 
 		exists, err := db.Integrations(db.IntegrationWhere.Username.EQ(req.Username)).ExistsG()
@@ -363,8 +373,13 @@ func (c *API) integrationsAddUsernameHandler(d *Darer) func(w http.ResponseWrite
 			}
 			existingRecord.UserID = u.ID.Int64
 			existingRecord.APIKey = apiKey
-			existingRecord.AuthToken = authToken
 
+			encryptedAuthToken, nonce, err := d.encrypt([]byte(authToken))
+			if err != nil {
+				return nil, http.StatusBadRequest, err
+			}
+			existingRecord.AuthToken = encryptedAuthToken
+			existingRecord.AuthTokenNonce = nonce
 			_, err = existingRecord.UpdateG(boil.Whitelist(
 				db.IntegrationColumns.UserID,
 				db.IntegrationColumns.Username,
@@ -485,13 +500,8 @@ func (c *API) signUpHandler(auther *Auther) func(w http.ResponseWriter, r *http.
 }
 func (c *API) blobHandler() func(w http.ResponseWriter, r *http.Request) {
 	fn := func(w http.ResponseWriter, r *http.Request) {
-		blobIDStr := chi.URLParam(r, "blob_id")
-		blobID, err := strconv.Atoi(blobIDStr)
-		if err != nil {
-			http.Error(w, Err(err).JSON(), http.StatusBadRequest)
-			return
-		}
-		blob, err := db.FindBlobG(null.Int64From(int64(blobID)))
+		blobFilename := chi.URLParam(r, "blob_id")
+		blob, err := db.Blobs(db.BlobWhere.FileName.EQ(blobFilename)).OneG()
 		if err != nil {
 			http.Error(w, Err(err).JSON(), http.StatusBadRequest)
 			return

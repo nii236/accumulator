@@ -14,12 +14,18 @@ import (
 )
 
 // refreshFriendCache in the database
-func refreshFriendCache(IntegrationID int, updateBlob bool) error {
+func refreshFriendCache(d *Darer, IntegrationID int, updateBlob bool) error {
 	integration, err := db.FindIntegrationG(null.Int64From(int64(IntegrationID)))
 	if err != nil {
 		return err
 	}
-	client, err := vrc.NewClient(vrc.ReleaseAPIURL, integration.AuthToken, integration.APIKey)
+
+	decryptedAuthToken, err := d.decrypt(integration.AuthToken, integration.AuthTokenNonce)
+	if err != nil {
+		return err
+	}
+
+	client, err := vrc.NewClient(vrc.ReleaseAPIURL, string(decryptedAuthToken), integration.APIKey)
 	if err != nil {
 		return err
 	}
@@ -70,11 +76,7 @@ func refreshFriendCache(IntegrationID int, updateBlob bool) error {
 			VrchatLocation:                vrcFriend.Location,
 		}
 		if updateBlob {
-			savedBlob, err := db.Blobs(db.BlobWhere.FileName.EQ(newBlobFilename)).OneG()
-			if err != nil {
-				return err
-			}
-			record.AvatarBlobID = savedBlob.ID
+			record.AvatarBlobFilename = null.StringFrom(newBlobFilename)
 		}
 		existing, err := db.Friends(
 			db.FriendWhere.VrchatID.EQ(vrcFriend.ID),
@@ -89,7 +91,6 @@ func refreshFriendCache(IntegrationID int, updateBlob bool) error {
 		}
 		updateMany := db.M{
 			db.FriendColumns.VrchatID:                      vrcFriend.ID,
-			db.FriendColumns.AvatarBlobID:                  vrcFriend,
 			db.FriendColumns.VrchatUsername:                vrcFriend.Username,
 			db.FriendColumns.VrchatDisplayName:             vrcFriend.DisplayName,
 			db.FriendColumns.VrchatAvatarImageURL:          vrcFriend.CurrentAvatarImageURL,
@@ -97,7 +98,7 @@ func refreshFriendCache(IntegrationID int, updateBlob bool) error {
 			db.FriendColumns.VrchatLocation:                vrcFriend.Location,
 		}
 		if updateBlob {
-			updateMany[db.FriendColumns.AvatarBlobID] = newBlobFilename
+			updateMany[db.FriendColumns.AvatarBlobFilename] = null.StringFrom(newBlobFilename)
 		}
 		_, err = existing.UpdateAllG(updateMany)
 		if err != nil {

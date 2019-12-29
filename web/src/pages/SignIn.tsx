@@ -21,7 +21,6 @@ export const SignIn = (props: Props) => {
 	}>()
 	const { thinking, startThinking, stopThinking } = UI.useContainer()
 	const [err, setErr] = React.useState<string | null>(null)
-	console.log(err)
 	const signIn = async (data: { email: string; password: string }) => {
 		try {
 			const res = await fetch("/api/auth/sign_in", { method: "POST", body: JSON.stringify(data) })

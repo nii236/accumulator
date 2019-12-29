@@ -8,9 +8,11 @@ prepare:
 	cd deploy && mkdir bin config web
 build-server: 
 	go generate
-	go run cmd/accumulator/main.go -db-migrate
+	go run cmd/admin/main.go -db-drop
+	go run cmd/admin/main.go -db-migrate
 	go generate
 	go build -o deploy/bin/accumulator cmd/accumulator/main.go
+	go build -o deploy/bin/admin cmd/admin/main.go
 build-web:
 	cd web && npm install
 	cd web && npm run build

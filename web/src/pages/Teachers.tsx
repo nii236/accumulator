@@ -18,7 +18,6 @@ export const Teachers = () => {
 				}
 
 				const data: { data: teacher[] } = await res.json()
-				console.log(data)
 				setTeachers(data.data)
 			} catch (err) {
 				console.error(err)

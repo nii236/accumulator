@@ -35,7 +35,6 @@ const AddVRChatUsername = (props: AddProps) => {
 			}
 
 			const data: { data: integration[] } = await res.json()
-			console.log(data)
 			props.fetchIntegrations()
 		} catch (err) {
 			console.error(err)
@@ -98,7 +97,6 @@ export const Integrations = (props: Props) => {
 			}
 
 			const data: { data: integration[] } = await res.json()
-			console.log(data)
 			fetchIntegrations()
 		} catch (err) {
 			console.error(err)
@@ -116,7 +114,6 @@ export const Integrations = (props: Props) => {
 			}
 
 			const data: { data: integration[] } = await res.json()
-			console.log(data)
 			setIntegrations(data.data)
 		} catch (err) {
 			console.error(err)
@@ -145,7 +142,11 @@ export const Integrations = (props: Props) => {
 		return <Spinner overrides={{ Svg: { style: { marginTop: "10rem", display: "block", marginLeft: "auto", marginRight: "auto" } } }} />
 	}
 	const itemProps: BlockProps = {
-		display: "flex",
+		// display: "flex",
+		// alignItems: "start",
+		// justifyItems: "start",
+		// alignContent: "start",
+		// justifyContent: "start",
 	}
 	return (
 		<div>
@@ -169,12 +170,9 @@ export const Integrations = (props: Props) => {
 					integrations.map(integration => {
 						return (
 							<FlexGridItem key={integration.id} {...itemProps}>
-								<Card key={integration.id}>
+								<Card key={integration.id} title={integration.username}>
 									<StyledBody>
-										<H2>{integration.username}</H2>
-										<small>
-											{integration.api_key}:{integration.auth_token}
-										</small>
+										<small>API Key: {integration.api_key}</small>
 									</StyledBody>
 									<StyledAction>
 										<Button

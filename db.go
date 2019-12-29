@@ -83,7 +83,7 @@ func Version(conn *sqlx.DB) (uint, bool, error) {
 	}
 	return v, d, nil
 }
-func Seed() error {
+func Seed(masterKeyHex string) error {
 	u := userFactory()
 	u.Email = "jtnguyen236@gmail.com"
 	u.PasswordHash = HashPassword("password")
@@ -104,7 +104,7 @@ func Seed() error {
 		return err
 	}
 	for _, user := range users {
-		integration := integrationFactory(user.ID.Int64)
+		integration := integrationFactory(masterKeyHex, user.ID.Int64)
 		err = integration.InsertG(boil.Infer())
 		if err != nil && !strings.Contains(err.Error(), ErrUnableToPopulate) {
 			return err
@@ -137,11 +137,8 @@ func Seed() error {
 			if i == 0 {
 				friend.IsTeacher = true
 			}
-			savedBlob, err := db.Blobs(db.BlobWhere.FileName.EQ(blobFilename)).OneG()
-			if err != nil {
-				return err
-			}
-			friend.AvatarBlobID = savedBlob.ID
+
+			friend.AvatarBlobFilename = null.StringFrom(blobFilename)
 
 			err = friend.InsertG(boil.Infer())
 			if err != nil && !strings.Contains(err.Error(), ErrUnableToPopulate) {
@@ -184,13 +181,22 @@ func Seed() error {
 	}
 	return nil
 }
-func integrationFactory(userID int64) *db.Integration {
+func integrationFactory(masterKey string, userID int64) *db.Integration {
+
+	d, err := NewDarer(masterKey)
+	if err != nil {
+		panic(err)
+	}
+	encrypted, nonce, err := d.encrypt([]byte("SAMPLE AUTH TOKEN"))
+	if err != nil {
+		panic(err)
+	}
 	data := &db.Integration{
-		UserID:    userID,
-		Username:  faker.Email(),
-		APIKey:    []byte{0},
-		AuthToken: []byte{0},
-		Nonce:     []byte{0},
+		UserID:         userID,
+		Username:       faker.Email(),
+		APIKey:         "SAMPLE API KEY",
+		AuthToken:      encrypted,
+		AuthTokenNonce: nonce,
 	}
 
 	return data

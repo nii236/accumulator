@@ -25,28 +25,27 @@ func NewDarer(masterKeyHex string) (*Darer, error) {
 }
 
 func (d *Darer) encrypt(inputB []byte) ([]byte, []byte, error) {
-	var nonce []byte
+	var nonce [32]byte
 	_, err := io.ReadFull(rand.Reader, nonce[:])
 	if err != nil {
 		return nil, []byte{}, fmt.Errorf("Failed to read random data: %w", err)
 	}
 
-	var key []byte
+	var key [32]byte
 	kdf := hkdf.New(sha256.New, d.MasterKey, nonce[:], nil)
 	if _, err = io.ReadFull(kdf, key[:]); err != nil {
 		return nil, []byte{}, fmt.Errorf("Failed to derive encryption key: %w", err)
 	}
-
 	input := bytes.NewReader(inputB)
 	output := &bytes.Buffer{}
 
 	if _, err = sio.Encrypt(output, input, sio.Config{Key: key[:]}); err != nil {
 		return nil, []byte{}, fmt.Errorf("Failed to encrypt data: %w", err)
 	}
-	return output.Bytes(), nonce, nil
+	return output.Bytes(), nonce[:], nil
 }
-func (d *Darer) decrypt(nonce []byte, inputB []byte) ([]byte, error) {
-	var key []byte
+func (d *Darer) decrypt(inputB []byte, nonce []byte) ([]byte, error) {
+	var key [32]byte
 	kdf := hkdf.New(sha256.New, d.MasterKey, nonce, nil)
 	_, err := io.ReadFull(kdf, key[:])
 	if err != nil {

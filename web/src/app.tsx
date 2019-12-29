@@ -18,7 +18,7 @@ import { H1 } from "baseui/typography"
 import { Users } from "./pages/Users"
 import { APIDocumentation } from "./pages/apidoc"
 
-interface Props extends RouteComponentProps { }
+interface Props extends RouteComponentProps {}
 const Home = (props: Props) => {
 	return (
 		<>
@@ -29,7 +29,7 @@ const Home = (props: Props) => {
 const Routes = () => {
 	const [css, theme] = useStyletron()
 	const ui = UI.useContainer()
-	const [validAuth, setValidAuth] = React.useState<{ email: string, role: string } | null>(null)
+	const [validAuth, setValidAuth] = React.useState<{ email: string; role: string } | null>(null)
 	const routeStyle: string = css({
 		width: "100%",
 		minHeight: "100vh",
@@ -43,15 +43,13 @@ const Routes = () => {
 				const err = await res.text()
 				throw new Error(err)
 			}
-			const data: { data: { email: string, role: string } } = await res.json()
-			console.log(data)
+			const data: { data: { email: string; role: string } } = await res.json()
 			setValidAuth(data.data)
 		} catch (err) {
 			console.error(err)
 			setValidAuth(null)
 		}
 		ui.stopThinking()
-
 	}
 	React.useEffect(() => {
 		authCheck()

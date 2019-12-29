@@ -19,6 +19,7 @@ require (
 	github.com/golang-migrate/migrate v3.5.4+incompatible
 	github.com/golang-migrate/migrate/v4 v4.7.1
 	github.com/jmoiron/sqlx v1.2.0
+	github.com/kelseyhightower/envconfig v1.4.0
 	github.com/mattn/go-sqlite3 v1.10.0
 	github.com/minio/sio v0.2.0
 	github.com/nfnt/resize v0.0.0-20180221191011-83c6a9932646
