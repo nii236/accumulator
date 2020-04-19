@@ -77,7 +77,7 @@ const Routes = () => {
 			{!validAuth && (
 				<Router>
 					<div>
-						<H1 overrides={{ Block: { style: { textAlign: "center" } } }}>VRNihongo Accumulator System</H1>
+						<H1 overrides={{ Block: { style: { textAlign: "center" } } }}>VRChat Accumulator System</H1>
 						<Switch>
 							<Route exact path="/" component={SignIn} />
 							<Route exact path="/sign_up" component={SignUp} />
