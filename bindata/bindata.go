@@ -59,7 +59,7 @@ func _20191225220909_initial_migrationDownSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "20191225220909_initial_migration.down.sql", size: 0, mode: os.FileMode(0644), modTime: time.Unix(1577321316, 0)}
+	info := bindataFileInfo{name: "20191225220909_initial_migration.down.sql", size: 0, mode: os.FileMode(0666), modTime: time.Unix(1587264826, 0)}
 	a := &asset{bytes: bytes, info: info, digest: [32]uint8{0xe3, 0xb0, 0xc4, 0x42, 0x98, 0xfc, 0x1c, 0x14, 0x9a, 0xfb, 0xf4, 0xc8, 0x99, 0x6f, 0xb9, 0x24, 0x27, 0xae, 0x41, 0xe4, 0x64, 0x9b, 0x93, 0x4c, 0xa4, 0x95, 0x99, 0x1b, 0x78, 0x52, 0xb8, 0x55}}
 	return a, nil
 }
@@ -148,7 +148,7 @@ func _20191225220909_initial_migrationUpSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "20191225220909_initial_migration.up.sql", size: 2379, mode: os.FileMode(0664), modTime: time.Unix(1577610136, 0)}
+	info := bindataFileInfo{name: "20191225220909_initial_migration.up.sql", size: 2379, mode: os.FileMode(0666), modTime: time.Unix(1587264826, 0)}
 	a := &asset{bytes: bytes, info: info, digest: [32]uint8{0x91, 0x64, 0x10, 0x43, 0x79, 0x12, 0x3a, 0x56, 0x28, 0x17, 0x59, 0x42, 0xa4, 0x5a, 0x52, 0x14, 0x29, 0xac, 0xde, 0x77, 0x17, 0xb0, 0x96, 0x19, 0xdd, 0xb7, 0x84, 0xf2, 0x41, 0x3e, 0x23, 0x7e}}
 	return a, nil
 }
