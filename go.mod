@@ -22,14 +22,13 @@ require (
 	github.com/minio/sio v0.2.0
 	github.com/nii236/vrchat-go v0.0.1
 	github.com/oklog/run v1.0.0
-	github.com/pkg/errors v0.8.1
-	github.com/prometheus/client_golang v1.1.0
+	github.com/pkg/errors v0.9.1
+	github.com/prometheus/client_golang v1.11.1
 	github.com/spf13/cast v1.3.1 // indirect
 	github.com/volatiletech/inflect v0.0.0-20170731032912-e7201282ae8d // indirect
 	github.com/volatiletech/null v8.0.0+incompatible
 	github.com/volatiletech/sqlboiler v3.6.1+incompatible
 	go.uber.org/zap v1.13.0
-	golang.org/x/crypto v0.0.0-20190911031432-227b76d455e7
-	golang.org/x/net v0.0.0-20191209160850-c0dbc17a3553 // indirect
+	golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9
 	google.golang.org/appengine v1.6.5 // indirect
 )
