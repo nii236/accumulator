@@ -58,7 +58,7 @@
 		"html-webpack-plugin": "^5.5.0",
 		"html-webpack-template": "^6.2.0",
 		"moment": "^2.29.4",
-		"node-sass": "^7.0.0",
+		"node-sass": "^7.0.3",
 		"prettier": "^1.18.2",
 		"react-docgen-typescript-loader": "^3.6.0",
 		"react-hook-form": "^4.0.0",
